@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Pencil, Check, X } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus } from 'lucide-react';
 import ChartCard from '@/components/admin/ChartCard';
 import DataTable, { type Column } from '@/components/admin/DataTable';
 import {
@@ -10,14 +10,10 @@ import {
   type ResiduPricing,
 } from '@/services/mock/admin.mock';
 import type { PricingRule } from '@/types/models';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/cn';
-
-// ──────────────────────────────────────────────────────────
-// Pricing Page — Item 34 dari PRD
-// Dua tabel: Harga Mutu (berdasarkan komoditas) dan
-// Harga Residu (berdasarkan Vehicle Type).
-// Mendukung inline editing.
-// ──────────────────────────────────────────────────────────
 
 const fmtRupiah = (n: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -32,6 +28,11 @@ export default function PricingPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
 
+  // Modal states
+  const [isMutuModalOpen, setIsMutuModalOpen] = useState(false);
+  const [isResiduModalOpen, setIsResiduModalOpen] = useState(false);
+
+  // -- Edit Logic
   const startEdit = (id: string, currentPrice: number) => {
     setEditingId(id);
     setEditValue(currentPrice);
@@ -60,6 +61,49 @@ export default function PricingPage() {
     setEditingId(null);
   };
 
+  // -- Delete Logic
+  const deleteMutu = (id: string) => {
+    if (confirm('Yakin ingin menghapus komoditas ini?')) {
+      setMutuData((prev) => prev.filter(item => item.id !== id));
+    }
+  };
+
+  const deleteResidu = (id: string) => {
+    if (confirm('Yakin ingin menghapus tarif residu ini?')) {
+      setResiduData((prev) => prev.filter(item => item.id !== id));
+    }
+  };
+
+  // -- Add Logic
+  const handleAddMutu = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newItem: PricingRule = {
+      id: `mutu-${Date.now()}`,
+      wasteType: formData.get('wasteType') as string,
+      category: 'MUTU' as any,
+      pricePerKg: Number(formData.get('pricePerKg')),
+      updatedAt: new Date().toISOString(),
+    };
+    setMutuData([newItem, ...mutuData]);
+    setIsMutuModalOpen(false);
+  };
+
+  const handleAddResidu = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newItem: ResiduPricing = {
+      id: `residu-${Date.now()}`,
+      vehicleType: formData.get('vehicleType') as any,
+      vehicleLabel: formData.get('vehicleLabel') as string,
+      pricePerKg: Number(formData.get('pricePerKg')),
+      updatedAt: new Date().toISOString(),
+    };
+    setResiduData([newItem, ...residuData]);
+    setIsResiduModalOpen(false);
+  };
+
+  // -- Columns
   const mutuColumns: Column<PricingRule>[] = [
     {
       key: 'wasteType',
@@ -85,28 +129,24 @@ export default function PricingPage() {
               className="w-28 rounded-lg border border-emerald-300 px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-emerald-100"
               autoFocus
             />
-            <button
-              onClick={() => saveMutuEdit(item.id)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
-            >
+            <button onClick={() => saveMutuEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600">
               <Check size={14} />
             </button>
-            <button
-              onClick={cancelEdit}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
-            >
+            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200">
               <X size={14} />
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 group">
             <span className="font-semibold text-gray-900">{fmtRupiah(item.pricePerKg)}</span>
-            <button
-              onClick={() => startEdit(item.id, item.pricePerKg)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-600"
-            >
-              <Pencil size={12} />
-            </button>
+            <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
+              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600">
+                <Pencil size={12} />
+              </button>
+              <button onClick={() => deleteMutu(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
+                <Trash2 size={12} />
+              </button>
+            </div>
           </div>
         ),
     },
@@ -117,9 +157,7 @@ export default function PricingPage() {
       render: (item) => (
         <span className="text-xs text-gray-400">
           {new Date(item.updatedAt).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
+            day: 'numeric', month: 'short', year: 'numeric',
           })}
         </span>
       ),
@@ -151,28 +189,24 @@ export default function PricingPage() {
               className="w-28 rounded-lg border border-amber-300 px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-amber-100"
               autoFocus
             />
-            <button
-              onClick={() => saveResiduEdit(item.id)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600"
-            >
+            <button onClick={() => saveResiduEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600">
               <Check size={14} />
             </button>
-            <button
-              onClick={cancelEdit}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
-            >
+            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200">
               <X size={14} />
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 group">
             <span className="font-semibold text-gray-900">{fmtRupiah(item.pricePerKg)}</span>
-            <button
-              onClick={() => startEdit(item.id, item.pricePerKg)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-600"
-            >
-              <Pencil size={12} />
-            </button>
+            <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
+              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600">
+                <Pencil size={12} />
+              </button>
+              <button onClick={() => deleteResidu(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
+                <Trash2 size={12} />
+              </button>
+            </div>
           </div>
         ),
     },
@@ -183,9 +217,7 @@ export default function PricingPage() {
       render: (item) => (
         <span className="text-xs text-gray-400">
           {new Date(item.updatedAt).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
+            day: 'numeric', month: 'short', year: 'numeric',
           })}
         </span>
       ),
@@ -204,12 +236,12 @@ export default function PricingPage() {
 
       {/* Tabel Mutu */}
       <ChartCard
-        title="💎 Harga Mutu — Komoditas Daur Ulang"
+        title="Harga Mutu — Komoditas Daur Ulang"
         subtitle="Harga pembelian per kg berdasarkan tipe sampah bernilai"
         action={
-          <button className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-600">
-            + Tambah Komoditas
-          </button>
+          <Button size="sm" onClick={() => setIsMutuModalOpen(true)} className="gap-2 bg-emerald-500 hover:bg-emerald-600 border-emerald-500 hover:border-emerald-600 text-white shadow-sm">
+            <Plus size={16} /> Tambah Komoditas
+          </Button>
         }
       >
         <DataTable
@@ -221,12 +253,12 @@ export default function PricingPage() {
 
       {/* Tabel Residu */}
       <ChartCard
-        title="🚛 Tarif Residu — Per Kendaraan"
+        title="Tarif Residu — Per Kendaraan"
         subtitle="Biaya pengangkutan residu berdasarkan tipe kendaraan kurir"
         action={
-          <button className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-600">
-            + Tambah Tarif
-          </button>
+          <Button size="sm" onClick={() => setIsResiduModalOpen(true)} className="gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 hover:border-amber-600 text-white shadow-sm">
+            <Plus size={16} /> Tambah Tarif
+          </Button>
         }
       >
         <DataTable
@@ -235,6 +267,51 @@ export default function PricingPage() {
           keyExtractor={(item) => item.id}
         />
       </ChartCard>
+
+      {/* Modal Tambah Komoditas Mutu */}
+      <Modal
+        isOpen={isMutuModalOpen}
+        onClose={() => setIsMutuModalOpen(false)}
+        title="Tambah Komoditas Mutu"
+      >
+        <form onSubmit={handleAddMutu} className="space-y-4">
+          <Input name="wasteType" label="Nama Komoditas (contoh: Kertas HVS)" required />
+          <Input name="pricePerKg" type="number" label="Harga per Kg (Rp)" min="0" required />
+          <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+            <Button type="button" variant="outline" onClick={() => setIsMutuModalOpen(false)}>Batal</Button>
+            <Button type="submit" className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white">Simpan Komoditas</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Tambah Tarif Residu */}
+      <Modal
+        isOpen={isResiduModalOpen}
+        onClose={() => setIsResiduModalOpen(false)}
+        title="Tambah Tarif Residu"
+      >
+        <form onSubmit={handleAddResidu} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-900">Jenis Kendaraan Backend</label>
+            <select 
+              name="vehicleType"
+              required
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+            >
+              <option value="MOTOR">Motor</option>
+              <option value="MOBIL_PICKUP">Mobil Pickup</option>
+              <option value="TRUK_KECIL">Truk Kecil</option>
+            </select>
+          </div>
+          <Input name="vehicleLabel" label="Label Kendaraan (contoh: Motor Roda Dua)" required />
+          <Input name="pricePerKg" type="number" label="Tarif Residu per Kg (Rp)" min="0" required />
+          <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+            <Button type="button" variant="outline" onClick={() => setIsResiduModalOpen(false)}>Batal</Button>
+            <Button type="submit" className="bg-amber-500 hover:bg-amber-600 border-amber-500 text-white">Simpan Tarif</Button>
+          </div>
+        </form>
+      </Modal>
+
     </div>
   );
 }
