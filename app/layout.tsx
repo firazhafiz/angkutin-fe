@@ -20,6 +20,28 @@ export const metadata: Metadata = {
     icon: "/logo/trash-white.svg",
     apple: "/logo/trash-white.svg",
   },
+  openGraph: {
+    title: "Angkutin - Smart Waste Management Solution",
+    description: "Manage your waste smarter and more sustainably with Angkutin.",
+    url: "https://angkutin-ten.vercel.app/",
+    siteName: "Angkutin",
+    images: [
+      {
+        url: "/logo/angkutin_tosca.png",
+        width: 1200,
+        height: 630,
+        alt: "Angkutin Logo",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Angkutin - Smart Waste Management Solution",
+    description: "Manage your waste smarter and more sustainably with Angkutin.",
+    images: ["/logo/angkutin_tosca.png"],
+  },
 };
 
 import QueryProvider from "@/providers/QueryProvider";
