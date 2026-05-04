@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import * as authService from '@/services/auth.service';
+import { authService } from '@/services/auth.service';
+import { LoginRequest, RegisterRequest } from '@/types/auth';
 import { storage } from '@/lib/storage';
 
 interface AuthUser {
@@ -16,8 +17,8 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
-  login: (payload: authService.LoginPayload) => Promise<AuthUser>;
-  register: (payload: authService.RegisterPayload) => Promise<AuthUser>;
+  login: (payload: LoginRequest) => Promise<AuthUser>;
+  register: (payload: RegisterRequest) => Promise<AuthUser>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -51,16 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (payload: authService.LoginPayload): Promise<AuthUser> => {
+  const login = useCallback(async (payload: LoginRequest): Promise<AuthUser> => {
     setLoading(true);
     setError(null);
     try {
       const result = await authService.login(payload);
       const authUser: AuthUser = {
-        id: result.id,
-        name: result.name,
-        email: result.email,
-         role: result.role, // Pastikan role disertakan
+        id: result.user.id,
+        name: result.user.fullname || result.user.email,
+        email: result.user.email,
+        role: result.user.role, // Pastikan role disertakan
         token: result.token,
       };
       storage.setToken(authUser.token);
@@ -76,16 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (payload: authService.RegisterPayload): Promise<AuthUser> => {
+  const register = useCallback(async (payload: RegisterRequest): Promise<AuthUser> => {
     setLoading(true);
     setError(null);
     try {
       const result = await authService.register(payload);
       const authUser: AuthUser = {
-        id: result.id,
-        name: result.name,
-        email: result.email,
-        role: result.role,
+        id: result.user.id,
+        name: result.user.fullname || result.user.email,
+        email: result.user.email,
+        role: result.user.role,
         token: result.token,
       };
       storage.setToken(authUser.token);
