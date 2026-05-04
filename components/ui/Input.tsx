@@ -1,67 +1,55 @@
+"use client";
 
-import React from 'react';
+import React from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/cn";
 
-// ──────────────────────────────────────────────────────────
-// Tipe props: semua props input HTML + tambahan label & icon
-// ──────────────────────────────────────────────────────────
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
-  rightIcon?: React.ReactNode; // contoh: tombol show/hide password
+  error?: string;
 }
 
-// ──────────────────────────────────────────────────────────
-// Komponen Input
-// ──────────────────────────────────────────────────────────
-export const Input: React.FC<InputProps> = ({ label, rightIcon, className = '', ...props }) => {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-      {/* Label opsional */}
-      {label && (
-        <label
-          style={{
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#1a1a1a',
-          }}
-        >
-          {label}
-        </label>
-      )}
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, error, type, ...props }, ref) => {
+    const [showPassword, setShowPassword] = React.useState(false);
+    const isPassword = type === "password";
 
-      {/* Wrapper untuk input + icon */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-        <input
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            paddingRight: rightIcon ? '44px' : '16px',
-            border: '1.5px solid #e0e0e0',
-            borderRadius: '8px',
-            fontSize: '14px',
-            color: '#1a1a1a',
-            outline: 'none',
-            transition: 'border-color 0.2s',
-            boxSizing: 'border-box',
-          }}
-          className={className}
-          {...props}
-        />
-        {/* Icon kanan (misal: eye untuk password) */}
-        {rightIcon && (
-          <span
-            style={{
-              position: 'absolute',
-              right: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#9e9e9e',
-              cursor: 'pointer',
-            }}
-          >
-            {rightIcon}
-          </span>
+    return (
+      <div className="w-full space-y-2">
+        {label && (
+          <label className="text-sm font-semibold text-dark block px-1">
+            {label}
+          </label>
+        )}
+        <div className="relative">
+          <input
+            type={isPassword ? (showPassword ? "text" : "password") : type}
+            className={cn(
+              "flex h-12 w-full rounded-md border-2 border-gray-200 bg-white px-4 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none  focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-all",
+              error && "border-red-500 focus-visible:ring-red-500/20",
+              isPassword && "pr-12",
+              className,
+            )}
+            ref={ref}
+            {...props}
+          />
+          {isPassword && (
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-dark transition-colors"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          )}
+        </div>
+        {error && (
+          <p className="text-xs text-red-500 font-medium px-1">{error}</p>
         )}
       </div>
-    </div>
-  );
-};
+    );
+  },
+);
+Input.displayName = "Input";
+
+export { Input };

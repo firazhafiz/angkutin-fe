@@ -1,57 +1,59 @@
-// components/ui/Button.tsx
-// ─────────────────────────────────────────────────────────
-// Komponen tombol yang bisa dipakai ulang.
-// Mendukung variant: 'primary' (hijau) dan 'outline' (border saja).
-// ─────────────────────────────────────────────────────────
+"use client";
 
-import React from 'react';
+import React from "react";
+import { cn } from "@/lib/cn";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'outline';
-  fullWidth?: boolean;
+  variant?: "primary" | "secondary" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg";
+  isLoading?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({
-  variant = 'primary',
-  fullWidth = true,
-  children,
-  style,
-  disabled,
-  ...props
-}) => {
-  // Style dasar yang selalu ada
-  const base: React.CSSProperties = {
-    width: fullWidth ? '100%' : 'auto',
-    padding: '14px 24px',
-    borderRadius: '8px',
-    fontWeight: 700,
-    fontSize: '15px',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'opacity 0.2s, background-color 0.2s',
-    opacity: disabled ? 0.6 : 1,
-    border: 'none',
-  };
-
-  // Style khusus per variant
-  const variants: Record<string, React.CSSProperties> = {
-    primary: {
-      backgroundColor: '#1a9e7a',
-      color: '#ffffff',
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variant = "primary",
+      size = "md",
+      isLoading,
+      children,
+      ...props
     },
-    outline: {
-      backgroundColor: '#ffffff',
-      color: '#1a1a1a',
-      border: '1.5px solid #e0e0e0',
-    },
-  };
+    ref,
+  ) => {
+    const variants = {
+      primary: "bg-primary text-white hover:bg-primary/90 ",
+      secondary: "bg-secondary text-white hover:bg-secondary/90 ",
+      outline: "border-2 border-gray-200 bg-white text-dark hover:bg-gray-50",
+      ghost: "text-primary hover:bg-primary/10",
+    };
 
-  return (
-    <button
-      disabled={disabled}
-      style={{ ...base, ...variants[variant], ...style }}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
+    const sizes = {
+      sm: "h-9 px-4 text-xs",
+      md: "h-11 px-6 text-sm font-semibold",
+      lg: "h-14 px-8 text-base font-bold",
+    };
+
+    return (
+      <button
+        className={cn(
+          "inline-flex items-center justify-center rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
+          variants[variant],
+          sizes[size],
+          className,
+        )}
+        ref={ref}
+        disabled={isLoading}
+        {...props}
+      >
+        {isLoading ? (
+          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+        ) : null}
+        {children}
+      </button>
+    );
+  },
+);
+Button.displayName = "Button";
+
+export { Button };
