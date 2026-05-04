@@ -75,7 +75,7 @@ export default function Navbar() {
         {/* Desktop Contact */}
         <Link
           href="#contact"
-          className="hidden md:inline-flex items-center px-5 py-2 bg-dark text-white text-sm font-semibold rounded-full hover:bg-primary transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
+          className="hidden md:inline-flex items-center px-5 py-2 bg-dark text-white text-sm font-semibold rounded-full hover:bg-primary transition-all duration-300 "
         >
           Contact Us
         </Link>

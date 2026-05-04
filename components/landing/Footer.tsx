@@ -57,20 +57,19 @@ export default function Footer() {
             </h3>
             <ul className="flex flex-col gap-2 text-sm md:text-base font-normal">
               <li>
-                <a href="#login" className="hover:underline text-white/80">
+                <a href="/auth/login" className="hover:underline text-white/80">
                   Login
                 </a>
               </li>
               <li>
-                <a href="#register" className="hover:underline text-white/80">
+                <a
+                  href="/auth/register"
+                  className="hover:underline text-white/80"
+                >
                   Register
                 </a>
               </li>
-              <li>
-                <a href="#order" className="hover:underline text-white/80">
-                  Order
-                </a>
-              </li>
+
               <li>
                 <a href="#about" className="hover:underline text-white/80">
                   About Us

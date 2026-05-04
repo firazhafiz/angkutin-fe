@@ -86,7 +86,7 @@ export default function LoginPage() {
             <div className="flex justify-end">
               <Link
                 href="/auth/forgot-password"
-                className="text-xs text-primary font-bold hover:underline"
+                className="text-xs text-primary font-medium hover:underline"
               >
                 Forgot password?
               </Link>
@@ -104,7 +104,12 @@ export default function LoginPage() {
           </Button>
 
           <div className="relative flex items-center justify-center my-6">
-            <div className="absolute inset-0 border-t border-gray-200" />
+            <div
+              className="absolute inset-0 flex items-center"
+              aria-hidden="true"
+            >
+              <div className="w-full border-t border-gray-200" />
+            </div>
             <span className="relative bg-white px-4 text-xs text-gray-400 uppercase font-medium">
               or continue with
             </span>
@@ -112,7 +117,7 @@ export default function LoginPage() {
 
           <Button
             variant="outline"
-            className="w-full flex items-center gap-2 py-6"
+            className="w-full flex cursor-pointer items-center gap-2 py-6"
             type="button"
           >
             <Image

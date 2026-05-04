@@ -42,7 +42,9 @@ export default function RegisterPage() {
     },
     onError: (error: any) => {
       console.error("=== REGISTER ERROR ===");
-      const message = error.response?.data?.message || "Registration failed. Please try again.";
+      const message =
+        error.response?.data?.message ||
+        "Registration failed. Please try again.";
       alert(message);
     },
   });
@@ -82,12 +84,12 @@ export default function RegisterPage() {
             type="email"
             placeholder="Enter your email"
             className="text-dark"
-            {...register("email", { 
+            {...register("email", {
               required: "Email is required",
               pattern: {
                 value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                message: "Invalid email address"
-              }
+                message: "Invalid email address",
+              },
             })}
             error={errors.email?.message}
           />
@@ -96,9 +98,12 @@ export default function RegisterPage() {
             type="password"
             placeholder="••••••••"
             className="text-dark"
-            {...register("password", { 
+            {...register("password", {
               required: "Password is required",
-              minLength: { value: 6, message: "Password must be at least 6 characters" }
+              minLength: {
+                value: 6,
+                message: "Password must be at least 6 characters",
+              },
             })}
             error={errors.password?.message}
           />
@@ -107,16 +112,17 @@ export default function RegisterPage() {
             type="password"
             placeholder="••••••••"
             className="text-dark"
-            {...register("password_confirmation", { 
+            {...register("password_confirmation", {
               required: "Please confirm your password",
-              validate: (value) => value === password || "Passwords do not match"
+              validate: (value) =>
+                value === password || "Passwords do not match",
             })}
             error={errors.password_confirmation?.message}
           />
 
-          <Button 
-            className="w-full mt-2 cursor-pointer" 
-            size="lg" 
+          <Button
+            className="w-full mt-2 cursor-pointer"
+            size="lg"
             variant="secondary"
             isLoading={isPending}
             type="submit"
@@ -125,7 +131,12 @@ export default function RegisterPage() {
           </Button>
 
           <div className="relative flex items-center justify-center my-6">
-            <div className="absolute inset-0 border-t border-gray-200" />
+            <div
+              className="absolute inset-0 flex items-center"
+              aria-hidden="true"
+            >
+              <div className="w-full border-t border-gray-200" />
+            </div>
             <span className="relative bg-white px-4 text-xs text-gray-400 uppercase font-medium">
               or continue with
             </span>
@@ -133,7 +144,7 @@ export default function RegisterPage() {
 
           <Button
             variant="outline"
-            className="w-full flex items-center gap-2 py-6"
+            className="w-full cursor-pointer flex items-center gap-2 py-6"
             type="button"
           >
             <Image
