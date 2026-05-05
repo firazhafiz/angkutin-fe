@@ -13,12 +13,24 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
+import { authService } from "@/services/auth.service";
+import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/services/user.service";
+import LogoutModal from "./LogoutModal";
 
 export default function TopBar() {
   const [greeting, setGreeting] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const { data: profileData, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: userService.getProfile,
+  });
+
+  const user = profileData?.data;
 
   useEffect(() => {
     const hours = new Date().getHours();
@@ -41,7 +53,7 @@ export default function TopBar() {
   const segments = pathname.split("/").filter(Boolean);
 
   const handleLogout = () => {
-    // Implement actual logout logic here (e.g., clear cookies, state)
+    authService.logout();
     router.push("/auth/login");
   };
 
@@ -82,9 +94,13 @@ export default function TopBar() {
           ref={menuRef}
         >
           <div className="hidden md:block text-right">
-            <p className="text-sm font-bold text-dark leading-tight">
-              Muhammad Ilham
-            </p>
+            {isProfileLoading ? (
+              <div className="h-4 w-24 bg-gray-100 animate-pulse rounded mb-1" />
+            ) : (
+              <p className="text-sm font-bold text-dark leading-tight">
+                {user?.name || "User"}
+              </p>
+            )}
             <p className="text-xs font-medium text-gray-400 leading-tight">
               {greeting}!
             </p>
@@ -115,7 +131,7 @@ export default function TopBar() {
                 className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden md:hidden"
               >
                 <div className="p-4 border-b border-gray-50">
-                  <p className="text-sm font-bold text-dark">Muhammad Ilham</p>
+                  <p className="text-sm font-bold text-dark">{user?.name || "User"}</p>
                   <p className="text-xs text-gray-400">{greeting}!</p>
                 </div>
 
@@ -134,7 +150,10 @@ export default function TopBar() {
 
                 <div className="p-2 border-t border-gray-50 bg-gray-50/50">
                   <button
-                    onClick={handleLogout}
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setShowLogoutModal(true);
+                    }}
                     className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                   >
                     <LogOut size={18} />
@@ -146,6 +165,12 @@ export default function TopBar() {
           </AnimatePresence>
         </div>
       </div>
+
+      <LogoutModal 
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogout}
+      />
     </header>
   );
 }

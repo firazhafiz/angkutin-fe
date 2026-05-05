@@ -1,8 +1,13 @@
 export interface User {
   id: string;
-  fullname: string;
+  name: string;
   email: string;
   role: string;
+  phone: string | null;
+  isVerified: boolean;
+  avatar?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginRequest {
@@ -10,10 +15,16 @@ export interface LoginRequest {
   password?: string;
 }
 
-export interface LoginResponse {
-  message: string;
-  token: string;
+export interface LoginData {
+  access_token: string;
+  refresh_token: string;
   user: User;
+}
+
+export interface LoginResponse {
+  status: string;
+  message: string;
+  data: LoginData;
 }
 
 export interface RegisterRequest {
@@ -25,7 +36,16 @@ export interface RegisterRequest {
 }
 
 export interface RegisterResponse {
+  status: string;
   message: string;
-  token: string;
-  user: User;
+  data: {
+    token: string;
+    user: User;
+  };
+}
+
+export interface ProfileResponse {
+  status: string;
+  message: string;
+  data: User;
 }

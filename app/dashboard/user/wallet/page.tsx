@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { useQuery } from "@tanstack/react-query";
+import { walletService } from "@/services/wallet.service";
 import {
   Wallet,
   ArrowUpRight,
@@ -64,6 +66,13 @@ const PROVIDERS = {
 };
 
 export default function UserWalletPage() {
+  const { data: walletData, isLoading: isWalletLoading } = useQuery({
+    queryKey: ["walletBalance"],
+    queryFn: walletService.getBalance,
+  });
+
+  const walletBalance = walletData?.data?.balance || 0;
+
   const [activeTab, setActiveTab] = useState("Semua");
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([
     {
@@ -209,9 +218,13 @@ export default function UserWalletPage() {
                   </p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-xl font-bold text-white/40">Rp</span>
-                    <h2 className="md:text-4xl text-4xl font-black tracking-tighter">
-                      425.000
-                    </h2>
+                    {isWalletLoading ? (
+                      <div className="h-10 w-32 bg-white/10 animate-pulse rounded-lg mt-1" />
+                    ) : (
+                      <h2 className="md:text-4xl text-4xl font-black tracking-tighter">
+                        {walletBalance.toLocaleString("id-ID")}
+                      </h2>
+                    )}
                   </div>
                 </div>
                 <div className="bg-white/5 backdrop-blur-xl  py-1.5 px-2 rounded-md text-xs font-black flex flex-col items-center gap-0.5 border border-white/10 shadow-lg">
