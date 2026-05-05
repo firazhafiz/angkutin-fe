@@ -46,15 +46,19 @@ export default function RegisterPage() {
   // 2. Setup Register Mutation
   const { mutate, isPending } = useMutation({
     mutationFn: authService.register,
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       console.log("=== REGISTER SUCCESS ===");
-      localStorage.setItem("token", data.token);
+      // Gunakan access_token sesuai dengan struktur API terbaru
+      localStorage.setItem("token", data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem("refresh_token", data.refresh_token);
+      }
       localStorage.setItem("user", JSON.stringify(data.user));
-      
+
       toast.success("Registrasi Berhasil!", {
         description: "Selamat datang! Mengalihkan ke Dashboard...",
       });
-      
+
       router.push("/dashboard/user");
     },
     onError: (error: any) => {
@@ -63,7 +67,7 @@ export default function RegisterPage() {
         error.response?.data?.message ||
         error.response?.data?.errors?.[0]?.message ||
         "Registration failed. Please try again.";
-        
+
       toast.error("Registrasi Gagal", {
         description: message,
       });
@@ -83,7 +87,7 @@ export default function RegisterPage() {
       </div>
     );
   }
- 
+
   return (
     <AuthWrapper
       leftTitle="Join now to manage waste smarter and get points or cash balances directly."
