@@ -88,7 +88,7 @@ export default function OrderHistoryPage() {
             <h2 className="text-xl font-extrabold text-dark">
               Riwayat Pesanan
             </h2>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-base text-gray-400 mt-1">
               Pantau semua aktivitas pengangkutan sampah Anda.
             </p>
           </div>

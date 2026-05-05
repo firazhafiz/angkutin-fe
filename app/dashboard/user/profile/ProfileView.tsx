@@ -96,16 +96,13 @@ export default function ProfileView() {
           <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
             {/* Avatar */}
             <div className="relative group">
-              <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/20">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/40">
                 <img
                   src={user.avatar}
                   alt={user.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg border-2 border-dark">
-                <Camera size={14} />
-              </button>
             </div>
 
             {/* User Info */}
@@ -147,7 +144,7 @@ export default function ProfileView() {
 
         {/* Settings Menu Grid */}
         <div>
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 px-1">
+          <h2 className="text-lg font-bold text-dark  tracking-wide mb-4 px-1">
             Account Settings
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -182,7 +179,7 @@ export default function ProfileView() {
 
         {/* Danger Zone */}
         <div className="bg-white rounded-xl border border-gray-100 p-6">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
+          <h2 className="text-base font-bold text-dark tracking-wide mb-4">
             Account Actions
           </h2>
           <div className="space-y-3">

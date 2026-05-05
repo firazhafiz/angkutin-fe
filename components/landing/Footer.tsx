@@ -82,25 +82,22 @@ export default function Footer() {
             <h3 className="text-base md:text-lg font-bold mb-3">Help</h3>
             <ul className="flex flex-col gap-2 text-sm md:text-base font-normal">
               <li>
-                <a
-                  href="#consultation"
-                  className="hover:underline text-white/80"
-                >
+                <a href="/consultation" className="hover:underline text-white/80">
                   Consultation
                 </a>
               </li>
               <li>
-                <a href="#terms" className="hover:underline text-white/80">
+                <a href="/terms" className="hover:underline text-white/80">
                   Terms and Condition
                 </a>
               </li>
               <li>
-                <a href="#privacy" className="hover:underline text-white/80">
+                <a href="/privacy" className="hover:underline text-white/80">
                   Privacy and Policy
                 </a>
               </li>
               <li>
-                <a href="#contact" className="hover:underline text-white/80">
+                <a href="/contact" className="hover:underline text-white/80">
                   Contact
                 </a>
               </li>

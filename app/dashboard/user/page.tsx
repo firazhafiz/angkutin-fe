@@ -27,7 +27,7 @@ export default function UserDashboard() {
             <h2 className="text-lg md:text-xl font-extrabold text-dark">
               Ringkasan Akun
             </h2>
-            <h3 className="text-xs max-w-4xl text-slate-500 font-light">
+            <h3 className="text-base max-w-4xl text-slate-500 font-light">
               Overview dari aktivitas anda di Angkutin
             </h3>
           </div>

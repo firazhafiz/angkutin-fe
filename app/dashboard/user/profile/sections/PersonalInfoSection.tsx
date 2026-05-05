@@ -86,9 +86,6 @@ export default function PersonalInfoSection({
               {user.tier} Member · Since {user.joinDate}
             </p>
           </div>
-          <button className="px-6 py-2.5 rounded-full border border-dashed border-primary text-primary text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
-            Change Profile Photo
-          </button>
         </div>
 
         {/* Form Card */}
