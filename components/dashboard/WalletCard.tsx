@@ -9,6 +9,7 @@ interface WalletCardProps {
   onOrder?: () => void;
   onWithdraw?: () => void;
   showOrderButton?: boolean;
+  isLoading?: boolean;
 }
 
 export default function WalletCard({
@@ -16,6 +17,7 @@ export default function WalletCard({
   onOrder,
   onWithdraw,
   showOrderButton = true,
+  isLoading = false,
 }: WalletCardProps) {
   const formattedBalance = new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -48,9 +50,13 @@ export default function WalletCard({
         </div>
 
         <div>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
-            {formattedBalance}
-          </h2>
+          {isLoading ? (
+            <div className="h-10 md:h-12 w-48 bg-white/10 animate-pulse rounded-lg" />
+          ) : (
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+              {formattedBalance}
+            </h2>
+          )}
           <p className="mt-2 text-xs text-gray-400 font-medium tracking-wide uppercase">
             Tersedia untuk digunakan
           </p>

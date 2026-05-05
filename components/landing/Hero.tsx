@@ -33,7 +33,7 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="relative pt-26 overflow-hidden bg-white">
+    <section id="home" className="relative pt-26 overflow-hidden bg-white">
       {/* Floating decoration icons - Dikembalikan, plus pointer-events-none agar tidak mengganggu saat swipe di layar hp */}
       <div className="hidden md:flex absolute top-22 left-5 md:top-26 md:left-16 animate-float opacity-80 pointer-events-none z-0">
         <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-[#D9E8D0] flex items-center justify-center">

@@ -8,6 +8,7 @@ import {
   Key,
   Lock,
   Smartphone,
+  Monitor,
   Eye,
   EyeOff,
   Check,
@@ -15,6 +16,9 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/services/user.service";
+import { toast } from "sonner";
 
 type ModalType = "password" | "pin" | null;
 
@@ -26,26 +30,45 @@ export default function SecuritySection({ onBack }: { onBack: () => void }) {
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
   const [saved, setSaved] = useState(false);
 
-  const sessions = [
-    {
-      device: "Chrome on Windows",
-      location: "Bandung, ID",
-      time: "Now · Active",
-      current: true,
-    },
-    {
-      device: "Safari on iPhone 14",
-      location: "Bandung, ID",
-      time: "2 hours ago",
-      current: false,
-    },
-    {
-      device: "Angkutin App (Android)",
-      location: "Jakarta, ID",
-      time: "3 days ago",
-      current: false,
-    },
-  ];
+  const { data: sessionData, isLoading: isSessionsLoading } = useQuery({
+    queryKey: ["userSessions"],
+    queryFn: userService.getSessions,
+    retry: false, // Don't spam if endpoint doesn't exist
+  });
+
+  const [currentLocation, setCurrentLocation] = useState("Loading location...");
+
+  React.useEffect(() => {
+    fetch("https://ipapi.co/json/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.city && data.country_code) {
+          setCurrentLocation(`${data.city}, ${data.country_code}`);
+        } else {
+          setCurrentLocation("Indonesia");
+        }
+      })
+      .catch(() => setCurrentLocation("Indonesia"));
+  }, []);
+
+  const activeSessions = sessionData?.data || [];
+
+  const getCurrentSessionInfo = () => {
+    if (typeof window === "undefined") return "Unknown Device";
+    const ua = navigator.userAgent;
+    if (ua.includes("Windows")) return "Chrome on Windows";
+    if (ua.includes("iPhone")) return "Safari on iPhone";
+    if (ua.includes("Android")) return "Android Device";
+    return "Web Browser";
+  };
+
+  const getSessionIcon = (deviceInfo?: string) => {
+    const info = deviceInfo || getCurrentSessionInfo();
+    if (info.includes("Windows") || info.includes("Mac") || info.includes("Linux")) {
+      return <Monitor size={18} className="text-gray-500" />;
+    }
+    return <Smartphone size={18} className="text-gray-500" />;
+  };
 
   const handleSave = () => {
     setSaved(true);
@@ -153,35 +176,66 @@ export default function SecuritySection({ onBack }: { onBack: () => void }) {
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
               Active Sessions
             </h3>
-            <button className="text-xs font-black text-red-500 hover:text-red-600">
-              Revoke All
-            </button>
           </div>
-          {sessions.map((s, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 px-6 py-5 border-b border-gray-50 last:border-0"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                <Smartphone size={18} className="text-gray-500" />
+          {isSessionsLoading ? (
+            [1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-6 py-5 border-b border-gray-50 animate-pulse"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-100 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-gray-100 rounded" />
+                  <div className="h-3 w-48 bg-gray-50 rounded" />
+                </div>
+              </div>
+            ))
+          ) : activeSessions.length > 0 ? (
+            activeSessions.map((s: any, i: number) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-6 py-5 border-b border-gray-50 last:border-0"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                  {getSessionIcon(s.device)}
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-dark text-sm">{s.device}</p>
+                  <p className="text-xs text-gray-400">
+                    {s.location} · {s.time}
+                  </p>
+                </div>
+                {s.current ? (
+                  <span className="text-[9px] font-black uppercase bg-green-50 text-green-600 px-2 py-1 rounded-full">
+                    Current
+                  </span>
+                ) : (
+                  <button className="text-xs font-black text-red-400 hover:text-red-600 transition-colors">
+                    Revoke
+                  </button>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center gap-4 px-6 py-5">
+              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0">
+                <div className="text-primary">
+                  {getSessionIcon()}
+                </div>
               </div>
               <div className="flex-1">
-                <p className="font-bold text-dark text-sm">{s.device}</p>
+                <p className="font-bold text-dark text-sm">
+                  {getCurrentSessionInfo()}
+                </p>
                 <p className="text-xs text-gray-400">
-                  {s.location} · {s.time}
+                  {currentLocation} · Now · Active
                 </p>
               </div>
-              {s.current ? (
-                <span className="text-[9px] font-black uppercase bg-green-50 text-green-600 px-2 py-1 rounded-full">
-                  Current
-                </span>
-              ) : (
-                <button className="text-xs font-black text-red-400 hover:text-red-600 transition-colors">
-                  Revoke
-                </button>
-              )}
+              <span className="text-[9px] font-black uppercase bg-green-50 text-green-600 px-2 py-1 rounded-full">
+                Current
+              </span>
             </div>
-          ))}
+          )}
         </div>
 
         {/* Danger Zone */}

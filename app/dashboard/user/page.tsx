@@ -4,6 +4,8 @@ import React from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
+import { useQuery } from "@tanstack/react-query";
+import { walletService } from "@/services/wallet.service";
 import {
   Trash2,
   TrendingUp,
@@ -18,6 +20,13 @@ import {
 } from "lucide-react";
 
 export default function UserDashboard() {
+  const { data: walletData, isLoading: isWalletLoading } = useQuery({
+    queryKey: ["walletBalance"],
+    queryFn: walletService.getBalance,
+  });
+
+  const walletBalance = walletData?.data?.balance || 0;
+
   return (
     <DashboardLayout role="user">
       <div className="space-y-6">
@@ -27,7 +36,7 @@ export default function UserDashboard() {
             <h2 className="text-lg md:text-xl font-extrabold text-dark">
               Ringkasan Akun
             </h2>
-            <h3 className="text-xs max-w-4xl text-slate-500 font-light">
+            <h3 className="text-base max-w-4xl text-slate-500 font-light">
               Overview dari aktivitas anda di Angkutin
             </h3>
           </div>
@@ -40,7 +49,8 @@ export default function UserDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <WalletCard
-              balance={150000}
+              balance={walletBalance}
+              isLoading={isWalletLoading}
               onOrder={() => console.log("Start Order")}
               onWithdraw={() => console.log("Withdraw")}
             />

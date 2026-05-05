@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,9 +13,20 @@ import { RegisterRequest } from "@/types/auth";
 import AuthWrapper from "@/components/auth/AuthWrapper";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [isLoadingCheck, setIsLoadingCheck] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      router.replace("/dashboard/user");
+    } else {
+      setIsLoadingCheck(false);
+    }
+  }, [router]);
 
   // 1. Setup Form Handling
   const {
@@ -37,15 +50,23 @@ export default function RegisterPage() {
       console.log("=== REGISTER SUCCESS ===");
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      alert("Registration Successful! Redirecting...");
-      router.push("/");
+      
+      toast.success("Registrasi Berhasil!", {
+        description: "Selamat datang! Mengalihkan ke Dashboard...",
+      });
+      
+      router.push("/dashboard/user");
     },
     onError: (error: any) => {
       console.error("=== REGISTER ERROR ===");
       const message =
         error.response?.data?.message ||
+        error.response?.data?.errors?.[0]?.message ||
         "Registration failed. Please try again.";
-      alert(message);
+        
+      toast.error("Registrasi Gagal", {
+        description: message,
+      });
     },
   });
 
@@ -55,6 +76,14 @@ export default function RegisterPage() {
     mutate(payload as any);
   };
 
+  if (isLoadingCheck) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+ 
   return (
     <AuthWrapper
       leftTitle="Join now to manage waste smarter and get points or cash balances directly."

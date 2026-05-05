@@ -20,7 +20,6 @@ interface PersonalInfoProps {
     phone: string;
     avatar: string;
     joinDate: string;
-    tier: string;
   };
   onBack: () => void;
 }
@@ -34,7 +33,6 @@ export default function PersonalInfoSection({
     name: user.name,
     email: user.email,
     phone: user.phone,
-    bio: "Passionate about waste recycling and sustainable living.",
   });
 
   const handleSave = () => {
@@ -83,12 +81,9 @@ export default function PersonalInfoSection({
           <div className="text-center">
             <p className="font-black text-dark">{user.name}</p>
             <p className="text-xs text-gray-400">
-              {user.tier} Member · Since {user.joinDate}
+              Member Since {user.joinDate}
             </p>
           </div>
-          <button className="px-6 py-2.5 rounded-full border border-dashed border-primary text-primary text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
-            Change Profile Photo
-          </button>
         </div>
 
         {/* Form Card */}
@@ -140,20 +135,6 @@ export default function PersonalInfoSection({
               </div>
             </div>
           ))}
-
-          {/* Bio */}
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
-              Bio
-            </label>
-            <textarea
-              rows={3}
-              value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              placeholder="Tell us something about yourself..."
-              className="w-full px-4 py-4 rounded-xl border border-gray-100 bg-gray-50 text-dark text-sm font-medium focus:outline-none focus:border-primary focus:bg-white transition-all resize-none"
-            />
-          </div>
         </div>
 
         {/* Save Button */}

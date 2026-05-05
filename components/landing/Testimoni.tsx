@@ -10,7 +10,7 @@ export default function Testimoni() {
     title: item.year,
   }));
   return (
-    <div className=" flex flex-col antialiased items-center justify-center relative overflow-hidden">
+    <div id="testimonials" className=" flex flex-col antialiased items-center justify-center relative overflow-hidden">
       <h1 className="font-light text-2xl md:text-4xl md:pt-10 pt-0 md:pb-12 pb-4 text-dark">
         What do they say?
       </h1>

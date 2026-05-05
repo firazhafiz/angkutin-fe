@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import Link from "next/link";
 import AuthWrapper from "@/components/auth/AuthWrapper";
 import { Input } from "@/components/ui/Input";
@@ -10,9 +12,20 @@ import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import { LoginRequest } from "@/types/auth";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [isLoadingCheck, setIsLoadingCheck] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      router.replace("/dashboard/user");
+    } else {
+      setIsLoadingCheck(false);
+    }
+  }, [router]);
 
   // 1. Setup Form Handling
   const {
@@ -27,29 +40,52 @@ export default function LoginPage() {
     onSuccess: (data) => {
       // SUCCESS LOGGER
       console.log("=== AUTH SUCCESS ===");
-      console.log("Token:", data.token);
+      console.log("Token:", data.access_token);
       console.log("User:", data.user);
 
       // Simpan token (Best Practice)
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("refresh_token", data.refresh_token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      // DIRECT TESTING (Redirect ke Dashboard atau Home)
-      alert("Login Berhasil! Mengalihkan ke Dashboard...");
-      router.push("/");
+      // Show proper toast
+      toast.success("Login Berhasil!", {
+        description: "Mengalihkan ke Dashboard...",
+      });
+      
+      router.push("/dashboard/user");
     },
     onError: (error: any) => {
       // ERROR LOGGER
       console.error("=== AUTH ERROR ===");
-      const message =
-        error.response?.data?.message || "Email atau password salah!";
-      alert(message);
+      let message =
+        error.response?.data?.message || 
+        error.response?.data?.error ||
+        error.response?.data?.errors?.[0]?.message ||
+        "Email atau password salah!";
+      
+      // If the message is just "Unauthorized", translate it to something more user-friendly
+      if (message.toLowerCase() === "unauthorized") {
+        message = "Email atau password salah!";
+      }
+      
+      toast.error("Gagal Login", {
+        description: message,
+      });
     },
   });
 
   const onSubmit = (data: LoginRequest) => {
     mutate(data);
   };
+
+  if (isLoadingCheck) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <AuthWrapper

@@ -4,7 +4,7 @@ import { FiArrowUpRight } from "react-icons/fi";
 
 export default function About() {
   return (
-    <section id="about" className="md:pt-20 pt-14 pb-14 bg-white">
+    <section id="aboutus" className="md:pt-20 pt-14 pb-14 bg-white">
       <div className="container mx-auto px-6 max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-start">
           {/* Left */}

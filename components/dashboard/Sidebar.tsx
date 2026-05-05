@@ -6,6 +6,9 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Wallet, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { authService } from "@/services/auth.service";
+import { useRouter } from "next/navigation";
+import LogoutModal from "./LogoutModal";
 
 interface SidebarProps {
   role: "user" | "courier";
@@ -13,6 +16,13 @@ interface SidebarProps {
 
 export default function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+
+  const handleLogout = () => {
+    authService.logout();
+    router.push("/auth/login");
+  };
 
   const navItems =
     role === "user"
@@ -86,11 +96,20 @@ export default function Sidebar({ role }: SidebarProps) {
       </nav>
 
       <div className="mt-auto pt-6 border-t border-gray-50">
-        <button className="flex text-sm items-center gap-4 px-4 py-3.5 w-full rounded-xl text-red-500 hover:bg-red-50 transition-colors font-semibold">
+        <button 
+          onClick={() => setShowLogoutModal(true)}
+          className="flex text-sm items-center gap-4 px-4 py-3.5 w-full rounded-xl text-red-500 hover:bg-red-50 transition-colors font-semibold cursor-pointer"
+        >
           <LogOut size={20} />
           <span>Keluar Akun</span>
         </button>
       </div>
+
+      <LogoutModal 
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogout}
+      />
     </aside>
   );
 }

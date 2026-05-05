@@ -74,7 +74,7 @@ export default function Navbar() {
 
         {/* Desktop Contact */}
         <Link
-          href="#contact"
+          href="/contact"
           className="hidden md:inline-flex items-center px-5 py-2 bg-dark text-white text-sm font-semibold rounded-full hover:bg-primary transition-all duration-300 "
         >
           Contact Us
@@ -153,7 +153,7 @@ export default function Navbar() {
                       (label) => (
                         <Link
                           key={label}
-                          href={`#${label.toLowerCase().replace(" ", "")}`}
+                          href={`/#${label.toLowerCase().replace(" ", "")}`}
                           onClick={toggleMenu}
                           className="p-2 text-dark font-medium hover:text-primary transition-colors flex items-center justify-between"
                         >
@@ -170,7 +170,7 @@ export default function Navbar() {
 
                 <motion.div variants={itemVariants} className="mt-4">
                   <Link
-                    href="#contact"
+                    href="/contact"
                     onClick={toggleMenu}
                     className="flex items-center justify-center gap-2 w-full py-4 rounded-full bg-dark text-white font-bold hover:bg-primary transition-colors duration-300 "
                   >

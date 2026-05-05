@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { useQuery } from "@tanstack/react-query";
+import { walletService } from "@/services/wallet.service";
 import {
   User,
   MapPin,
@@ -16,10 +18,14 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
 import PersonalInfoSection from "./sections/PersonalInfoSection";
 import AddressSection from "./sections/AddressSection";
 import SecuritySection from "./sections/SecuritySection";
 import NotificationSection from "./sections/NotificationSection";
+import { userService } from "@/services/user.service";
+import LogoutModal from "@/components/dashboard/LogoutModal";
 
 type ActiveSection =
   | "overview"
@@ -61,16 +67,44 @@ const menuItems = [
 
 export default function ProfileView() {
   const [active, setActive] = useState<ActiveSection>("overview");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = () => {
+    authService.logout();
+    router.push("/auth/login");
+  };
+
+  const { data: walletData, isLoading: isWalletLoading } = useQuery({
+    queryKey: ["walletBalance"],
+    queryFn: walletService.getBalance,
+  });
+
+  const walletBalance = walletData?.data?.balance || 0;
+  // Function to format balance to "k" format like in the design
+  const formatBalanceK = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(0) + "k";
+    }
+    return num.toString();
+  };
+
+  const { data: profileData, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["userProfile"],
+    queryFn: userService.getProfile,
+  });
+
+  const userData = profileData?.data;
 
   const user = {
-    name: "Budi Santoso",
-    email: "budi.santoso@email.com",
-    phone: "+62 812 3456 7890",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Budi",
-    joinDate: "March 2024",
-    totalOrders: 24,
-    totalPoints: 2840,
-    totalBalance: "Rp 425.000",
+    name: userData?.name || "User",
+    email: userData?.email || "...",
+    phone: userData?.phone || "-",
+    avatar: userData?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.name || "User"}`,
+    joinDate: userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : "...",
+    totalOrders: 24, // Mock
+    totalPoints: 2840, // Mock
+    totalBalance: walletBalance,
     tier: "Silver",
   };
 
@@ -96,29 +130,38 @@ export default function ProfileView() {
           <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
             {/* Avatar */}
             <div className="relative group">
-              <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/20">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/40">
                 <img
                   src={user.avatar}
                   alt={user.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg border-2 border-dark">
-                <Camera size={14} />
-              </button>
             </div>
 
             {/* User Info */}
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <h1 className="text-2xl font-black tracking-tight">
-                  {user.name}
-                </h1>
+                {isProfileLoading ? (
+                  <div className="h-8 w-48 bg-white/10 animate-pulse rounded-lg" />
+                ) : (
+                  <h1 className="text-2xl font-black tracking-tight">
+                    {user.name}
+                  </h1>
+                )}
               </div>
-              <p className="text-white/50 text-sm font-medium">{user.email}</p>
-              <p className="text-white/30 text-xs mt-1">
-                Member since {user.joinDate}
-              </p>
+              {isProfileLoading ? (
+                <div className="h-4 w-32 bg-white/10 animate-pulse rounded mt-2" />
+              ) : (
+                <p className="text-white/50 text-sm font-medium">{user.email}</p>
+              )}
+              {isProfileLoading ? (
+                <div className="h-3 w-40 bg-white/5 animate-pulse rounded mt-2" />
+              ) : (
+                <p className="text-white/30 text-xs mt-1">
+                  Member since {user.joinDate}
+                </p>
+              )}
             </div>
 
             {/* Quick Stats */}
@@ -133,9 +176,13 @@ export default function ProfileView() {
                 { label: "Balance", value: "425k", icon: Wallet },
               ].map((s) => (
                 <div key={s.label} className="text-center">
-                  <p className="text-2xl font-black tracking-tighter">
-                    {s.value}
-                  </p>
+                  {s.label === "Balance" && isWalletLoading ? (
+                    <div className="h-8 w-12 bg-white/10 animate-pulse rounded mx-auto mb-1" />
+                  ) : (
+                    <p className="text-2xl font-black tracking-tighter">
+                      {s.label === "Balance" ? formatBalanceK(walletBalance) : s.value}
+                    </p>
+                  )}
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                     {s.label}
                   </p>
@@ -147,7 +194,7 @@ export default function ProfileView() {
 
         {/* Settings Menu Grid */}
         <div>
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 px-1">
+          <h2 className="text-lg font-bold text-dark  tracking-wide mb-4 px-1">
             Account Settings
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -182,11 +229,14 @@ export default function ProfileView() {
 
         {/* Danger Zone */}
         <div className="bg-white rounded-xl border border-gray-100 p-6">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
+          <h2 className="text-base font-bold text-dark tracking-wide mb-4">
             Account Actions
           </h2>
           <div className="space-y-3">
-            <button className="w-full flex items-center gap-4 p-4 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-all group">
+            <button 
+              onClick={() => setShowLogoutModal(true)}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-all group cursor-pointer"
+            >
               <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
                 <LogOut size={18} />
               </div>
@@ -197,6 +247,12 @@ export default function ProfileView() {
             </button>
           </div>
         </div>
+
+        <LogoutModal 
+          isOpen={showLogoutModal}
+          onClose={() => setShowLogoutModal(false)}
+          onConfirm={handleLogout}
+        />
       </div>
     </DashboardLayout>
   );
