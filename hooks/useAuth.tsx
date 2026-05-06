@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Restore session dari localStorage atau gunakan MOCK ADMIN untuk bypass
   useEffect(() => {
     const savedUser = storage.getUser<AuthUser>();
     const savedToken = storage.getToken();
@@ -38,7 +37,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (savedUser && savedToken) {
       setUser({ ...savedUser, token: savedToken });
     } else {
-      // AUTO-LOGIN MOCK ADMIN (Bypass)
       const mockAdmin: AuthUser = {
         id: 'admin-001',
         name: 'Super Admin',
@@ -59,10 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authService.login(payload);
       const authUser: AuthUser = {
         id: result.user.id,
-        name: result.user.fullname || result.user.email,
+        name: result.user.name || result.user.email,
         email: result.user.email,
-        role: result.user.role, // Pastikan role disertakan
-        token: result.token,
+        role: result.user.role, 
+        token: result.access_token,
       };
       storage.setToken(authUser.token);
       storage.setUser(authUser);
@@ -84,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authService.register(payload);
       const authUser: AuthUser = {
         id: result.user.id,
-        name: result.user.fullname || result.user.email,
+        name: result.user.name || result.user.email,
         email: result.user.email,
         role: result.user.role,
         token: result.token,

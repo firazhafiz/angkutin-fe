@@ -61,11 +61,11 @@ export default function FinancePage() {
   const withdrawalColumns: Column<WithdrawalRequest>[] = [
     {
       key: 'userName', header: 'Pengguna',
-      render: (item) => <span className="font-semibold text-gray-900">{item.userName}</span>,
+      render: (item) => <span className="font-semibold text-dark">{item.userName}</span>,
     },
     {
-      key: 'amount', header: 'Jumlah', align: 'right',
-      render: (item) => <span className="font-bold text-gray-900">{fmtRupiah(item.amount)}</span>,
+      key: 'amount', header: 'Jumlah', align: 'right', numeric: true,
+      render: (item) => <span className="font-bold text-dark">{fmtRupiah(item.amount)}</span>,
     },
     { key: 'provider', header: 'Provider' },
     { key: 'accountNumber', header: 'No. Akun', render: (item) => <span className="font-mono text-sm">{item.accountNumber}</span> },
@@ -73,13 +73,12 @@ export default function FinancePage() {
       key: 'status', header: 'Status', align: 'center',
       render: (item) => {
         const styles: Record<string, string> = {
-          pending: 'bg-amber-50 text-amber-600',
-          approved: 'bg-emerald-50 text-emerald-600',
-          rejected: 'bg-red-50 text-red-500',
+          pending: 'bg-amber-50 text-amber-600 border-amber-200',
+          approved: 'bg-[#d1fae5] text-secondary border-[#a7f3d0]',
+          rejected: 'bg-red-50 text-red-500 border-red-200',
         };
         return (
           <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize border',
-            item.status === 'pending' ? 'border-amber-200' : item.status === 'approved' ? 'border-emerald-200' : 'border-red-200',
             styles[item.status]
           )}>
             {item.status}
@@ -96,7 +95,7 @@ export default function FinancePage() {
       render: (item) =>
         item.status === 'pending' ? (
           <div className="flex justify-center gap-1">
-            <button onClick={() => handleApprove(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm" title="Approve">
+            <button onClick={() => handleApprove(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary text-white hover:bg-[#047857] shadow-sm" title="Approve">
               <Check size={14} />
             </button>
             <button onClick={() => openRejectModal(item)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 text-white hover:bg-red-600 shadow-sm" title="Reject">
@@ -116,38 +115,26 @@ export default function FinancePage() {
     },
     {
       key: 'userName', header: 'Pengguna',
-      render: (item) => <span className="font-semibold text-gray-900">{item.userName}</span>,
+      render: (item) => <span className="font-semibold text-dark">{item.userName}</span>,
     },
     {
       key: 'method', header: 'Metode', align: 'center',
       render: (item) => (
-        <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600 uppercase">
+        <span className="rounded-full border border-primary/20 bg-primary-light px-2.5 py-0.5 text-xs font-semibold text-primary uppercase">
           {item.method}
         </span>
       ),
     },
     {
-      key: 'amount', header: 'Jumlah', align: 'right',
-      render: (item) => <span className="font-bold text-gray-900">{fmtRupiah(item.amount)}</span>,
-    },
-    {
-      key: 'scenario', header: 'Skenario', align: 'center',
-      render: (item) => (
-        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold border',
-          item.scenario === 'B' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-purple-50 text-purple-600 border-purple-200'
-        )}>
-          SKENARIO {item.scenario}
-        </span>
-      ),
+      key: 'amount', header: 'Jumlah', align: 'right', numeric: true,
+      render: (item) => <span className="font-bold text-dark">{fmtRupiah(item.amount)}</span>,
     },
     {
       key: 'status', header: 'Status', align: 'center',
       render: (item) => {
         const styles: Record<string, string> = {
-          pending: 'bg-amber-50 text-amber-600 border-amber-200',
-          success: 'bg-emerald-50 text-emerald-600 border-emerald-200',
+          success: 'bg-[#d1fae5] text-secondary border-[#a7f3d0]',
           failed: 'bg-red-50 text-red-500 border-red-200',
-          expired: 'bg-gray-50 text-gray-500 border-gray-200',
         };
         return (
           <span className={cn('rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize', styles[item.status])}>
@@ -167,11 +154,11 @@ export default function FinancePage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-900">Keuangan</h2>
+          <h2 className="text-xl font-extrabold text-dark">Keuangan</h2>
           <p className="text-sm text-gray-500">Kelola persetujuan penarikan saldo dan log transaksi</p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 w-full md:w-64">
+        <div className="flex items-center gap-2 rounded-xl border border-soft-gray bg-white px-3 py-2 w-full md:w-64">
           <Search size={14} className="text-gray-400" />
           <input
             type="text"
@@ -184,12 +171,12 @@ export default function FinancePage() {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+      <div className="flex gap-1 rounded-xl bg-soft-gray p-1 w-fit">
         {(['withdrawals', 'gateway'] as const).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-all', tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+            className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-all', tab === key ? 'bg-white text-dark shadow-sm' : 'text-gray-500 hover:text-dark')}
           >
             {key === 'withdrawals' ? 'Penarikan Saldo' : 'Payment Gateway'}
           </button>
@@ -201,7 +188,7 @@ export default function FinancePage() {
           <DataTable columns={withdrawalColumns} data={filteredWithdrawals} keyExtractor={(i) => i.id} emptyMessage="Tidak ada antrean penarikan" />
         </ChartCard>
       ) : (
-        <ChartCard title="Log Mutasi Payment Gateway" subtitle="Transaksi pembayaran QRIS/VA dari pengguna">
+        <ChartCard title="Log Mutasi Payment Gateway" subtitle="Riwayat pembayaran QRIS dari pengguna">
           <DataTable columns={gatewayColumns} data={filteredGateway} keyExtractor={(i) => i.id} emptyMessage="Tidak ada log transaksi" />
         </ChartCard>
       )}
@@ -214,17 +201,17 @@ export default function FinancePage() {
       >
         <form onSubmit={handleReject} className="space-y-4">
           <p className="text-sm text-gray-600">
-            Anda akan menolak permintaan penarikan dana sebesar <strong className="text-gray-900">{selectedWithdrawal && fmtRupiah(selectedWithdrawal.amount)}</strong> dari <strong className="text-gray-900">{selectedWithdrawal?.userName}</strong>.
+            Anda akan menolak permintaan penarikan dana sebesar <strong className="text-dark">{selectedWithdrawal && fmtRupiah(selectedWithdrawal.amount)}</strong> dari <strong className="text-dark">{selectedWithdrawal?.userName}</strong>.
           </p>
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-gray-900">Alasan Penolakan</label>
+            <label className="text-sm font-semibold text-dark">Alasan Penolakan</label>
             <textarea
               required
               placeholder="Contoh: Nomor rekening tidak valid"
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all min-h-[100px]"
+              className="w-full rounded-xl border border-soft-gray bg-white px-4 py-3 text-sm text-dark outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all min-h-[100px]"
             />
           </div>
-          <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+          <div className="pt-4 flex justify-end gap-3 border-t border-soft-gray">
             <Button type="button" variant="outline" onClick={() => setRejectModalOpen(false)}>Batal</Button>
             <Button type="submit" className="bg-red-500 hover:bg-red-600 border-red-500 text-white">Konfirmasi Penolakan</Button>
           </div>

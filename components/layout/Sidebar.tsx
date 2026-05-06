@@ -154,8 +154,8 @@ export default function Sidebar({
                       'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
                       'transition-all duration-200',
                       isActive
-                        ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900',
+                        ? (collapsed ? 'text-emerald-700' : 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm')
+                        : (collapsed ? 'text-gray-500 hover:text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'),
                       collapsed && 'justify-center px-2'
                     )}
                     title={collapsed ? item.label : undefined}

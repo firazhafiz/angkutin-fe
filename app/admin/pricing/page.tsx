@@ -22,6 +22,18 @@ const fmtRupiah = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
+// Mapping kendaraan → label + tarif default
+const vehicleTarifDefaults: Record<string, { label: string; tarif: number }> = {
+  MOTOR: { label: 'Motor', tarif: 1500 },
+  MOBIL_PICKUP: { label: 'Pickup', tarif: 1200 },
+  TOSHA: { label: 'Viar', tarif: 1000 },
+  TRUK_KECIL: { label: 'Truk Kecil', tarif: 1000 },
+  TRUK_BESAR: { label: 'Truk Besar', tarif: 800 },
+};
+
+// Preset pilihan tarif
+const tarifPresets = [800, 1000, 1200, 1500, 2000, 2500, 3000];
+
 export default function PricingPage() {
   const [mutuData, setMutuData] = useState(mockMutuPricing);
   const [residuData, setResiduData] = useState(mockResiduPricing);
@@ -31,6 +43,10 @@ export default function PricingPage() {
   // Modal states
   const [isMutuModalOpen, setIsMutuModalOpen] = useState(false);
   const [isResiduModalOpen, setIsResiduModalOpen] = useState(false);
+
+  // Residu form state
+  const [selectedVehicle, setSelectedVehicle] = useState<string>('');
+  const [selectedTarif, setSelectedTarif] = useState<number>(0);
 
   // -- Edit Logic
   const startEdit = (id: string, currentPrice: number) => {
@@ -74,7 +90,7 @@ export default function PricingPage() {
     }
   };
 
-  // -- Add Logic
+  // -- Add Mutu Logic
   const handleAddMutu = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -89,18 +105,22 @@ export default function PricingPage() {
     setIsMutuModalOpen(false);
   };
 
+  // -- Add Residu Logic
   const handleAddResidu = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    if (!selectedVehicle || selectedTarif <= 0) return;
+    const vehicleInfo = vehicleTarifDefaults[selectedVehicle];
     const newItem: ResiduPricing = {
       id: `residu-${Date.now()}`,
-      vehicleType: formData.get('vehicleType') as any,
-      vehicleLabel: formData.get('vehicleLabel') as string,
-      pricePerKg: Number(formData.get('pricePerKg')),
+      vehicleType: selectedVehicle as any,
+      vehicleLabel: vehicleInfo?.label ?? selectedVehicle,
+      pricePerKg: selectedTarif,
       updatedAt: new Date().toISOString(),
     };
     setResiduData([newItem, ...residuData]);
     setIsResiduModalOpen(false);
+    setSelectedVehicle('');
+    setSelectedTarif(0);
   };
 
   // -- Columns
@@ -110,8 +130,8 @@ export default function PricingPage() {
       header: 'Tipe Komoditas',
       render: (item) => (
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="font-medium text-gray-900">{item.wasteType}</span>
+          <div className="h-2 w-2 rounded-full bg-secondary shrink-0" />
+          <span className="font-medium text-dark">{item.wasteType}</span>
         </div>
       ),
     },
@@ -119,6 +139,7 @@ export default function PricingPage() {
       key: 'pricePerKg',
       header: 'Harga / kg',
       align: 'right',
+      numeric: true,
       render: (item) =>
         editingId === item.id ? (
           <div className="flex items-center justify-end gap-2">
@@ -126,21 +147,21 @@ export default function PricingPage() {
               type="number"
               value={editValue}
               onChange={(e) => setEditValue(Number(e.target.value))}
-              className="w-28 rounded-lg border border-emerald-300 px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-emerald-100"
+              className="w-28 rounded-lg border border-primary/30 px-2 py-1 text-right text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
               autoFocus
             />
-            <button onClick={() => saveMutuEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600">
+            <button onClick={() => saveMutuEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white hover:bg-[#015558]">
               <Check size={14} />
             </button>
-            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200">
+            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-soft-gray text-gray-500 hover:bg-gray-200">
               <X size={14} />
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-end gap-2 group">
-            <span className="font-semibold text-gray-900">{fmtRupiah(item.pricePerKg)}</span>
-            <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600">
+          <div className="relative flex items-center justify-end group">
+            <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.pricePerKg)}</span>
+            <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex gap-1 bg-white px-1 opacity-0 transition-opacity group-hover:opacity-100 shadow-sm rounded-lg">
+              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-primary-light hover:text-primary">
                 <Pencil size={12} />
               </button>
               <button onClick={() => deleteMutu(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
@@ -170,8 +191,8 @@ export default function PricingPage() {
       header: 'Tipe Kendaraan',
       render: (item) => (
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-amber-500" />
-          <span className="font-medium text-gray-900">{item.vehicleLabel}</span>
+          <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+          <span className="font-medium text-dark">{item.vehicleLabel}</span>
         </div>
       ),
     },
@@ -179,6 +200,7 @@ export default function PricingPage() {
       key: 'pricePerKg',
       header: 'Tarif / kg',
       align: 'right',
+      numeric: true,
       render: (item) =>
         editingId === item.id ? (
           <div className="flex items-center justify-end gap-2">
@@ -186,21 +208,21 @@ export default function PricingPage() {
               type="number"
               value={editValue}
               onChange={(e) => setEditValue(Number(e.target.value))}
-              className="w-28 rounded-lg border border-amber-300 px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-amber-100"
+              className="w-28 rounded-lg border border-amber-300 px-2 py-1 text-right text-sm font-mono outline-none focus:ring-2 focus:ring-amber-100"
               autoFocus
             />
             <button onClick={() => saveResiduEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600">
               <Check size={14} />
             </button>
-            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200">
+            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-soft-gray text-gray-500 hover:bg-gray-200">
               <X size={14} />
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-end gap-2 group">
-            <span className="font-semibold text-gray-900">{fmtRupiah(item.pricePerKg)}</span>
-            <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600">
+          <div className="relative flex items-center justify-end group">
+            <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.pricePerKg)}</span>
+            <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex gap-1 bg-white px-1 opacity-0 transition-opacity group-hover:opacity-100 shadow-sm rounded-lg">
+              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-primary-light hover:text-primary">
                 <Pencil size={12} />
               </button>
               <button onClick={() => deleteResidu(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
@@ -228,7 +250,7 @@ export default function PricingPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-extrabold text-gray-900">Tarif Harga</h2>
+        <h2 className="text-xl font-extrabold text-dark">Tarif Harga</h2>
         <p className="text-sm text-gray-400">
           Kelola harga per kilogram untuk setiap komoditas mutu dan tarif residu kendaraan
         </p>
@@ -239,7 +261,7 @@ export default function PricingPage() {
         title="Harga Mutu — Komoditas Daur Ulang"
         subtitle="Harga pembelian per kg berdasarkan tipe sampah bernilai"
         action={
-          <Button size="sm" onClick={() => setIsMutuModalOpen(true)} className="gap-2 bg-emerald-500 hover:bg-emerald-600 border-emerald-500 hover:border-emerald-600 text-white shadow-sm">
+          <Button size="sm" onClick={() => setIsMutuModalOpen(true)} className="gap-2 bg-primary hover:bg-[#015558] border-primary hover:border-[#015558] text-white shadow-sm">
             <Plus size={16} /> Tambah Komoditas
           </Button>
         }
@@ -277,37 +299,115 @@ export default function PricingPage() {
         <form onSubmit={handleAddMutu} className="space-y-4">
           <Input name="wasteType" label="Nama Komoditas (contoh: Kertas HVS)" required />
           <Input name="pricePerKg" type="number" label="Harga per Kg (Rp)" min="0" required />
-          <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+          <div className="pt-4 flex justify-end gap-3 border-t border-soft-gray">
             <Button type="button" variant="outline" onClick={() => setIsMutuModalOpen(false)}>Batal</Button>
-            <Button type="submit" className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white">Simpan Komoditas</Button>
+            <Button type="submit" className="bg-primary hover:bg-[#015558] border-primary text-white">Simpan Komoditas</Button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal Tambah Tarif Residu */}
+      {/* Modal Tambah Tarif Residu — 2 dropdown */}
       <Modal
         isOpen={isResiduModalOpen}
-        onClose={() => setIsResiduModalOpen(false)}
+        onClose={() => {
+          setIsResiduModalOpen(false);
+          setSelectedVehicle('');
+          setSelectedTarif(0);
+        }}
         title="Tambah Tarif Residu"
       >
         <form onSubmit={handleAddResidu} className="space-y-4">
+          {/* Field 1: Jenis Kendaraan Bermotor */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-gray-900">Jenis Kendaraan Backend</label>
-            <select 
+            <label className="text-sm font-semibold text-dark">
+              Jenis Kendaraan Bermotor
+            </label>
+            <select
               name="vehicleType"
               required
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+              value={selectedVehicle}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSelectedVehicle(v);
+                if (vehicleTarifDefaults[v]) {
+                  setSelectedTarif(vehicleTarifDefaults[v].tarif);
+                } else {
+                  setSelectedTarif(0);
+                }
+              }}
+              className="w-full rounded-xl border border-soft-gray bg-white px-4 py-2.5 text-sm text-dark outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer"
             >
-              <option value="MOTOR">Motor</option>
-              <option value="MOBIL_PICKUP">Mobil Pickup</option>
-              <option value="TRUK_KECIL">Truk Kecil</option>
+              <option value="">— Pilih Jenis Kendaraan —</option>
+              {Object.entries(vehicleTarifDefaults).map(([key, val]) => (
+                <option key={key} value={key}>{val.label}</option>
+              ))}
             </select>
           </div>
-          <Input name="vehicleLabel" label="Label Kendaraan (contoh: Motor Roda Dua)" required />
-          <Input name="pricePerKg" type="number" label="Tarif Residu per Kg (Rp)" min="0" required />
-          <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
-            <Button type="button" variant="outline" onClick={() => setIsResiduModalOpen(false)}>Batal</Button>
-            <Button type="submit" className="bg-amber-500 hover:bg-amber-600 border-amber-500 text-white">Simpan Tarif</Button>
+
+          {/* Field 2: Tarif Residu Kendaraan (editable) */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-dark">
+              Tarif Residu Kendaraan
+              {selectedVehicle && (
+                <span className="ml-2 text-xs font-normal text-gray-400">
+                  (default: {fmtRupiah(vehicleTarifDefaults[selectedVehicle]?.tarif ?? 0)} / kg)
+                </span>
+              )}
+            </label>
+            <select
+              value={selectedTarif}
+              onChange={(e) => setSelectedTarif(Number(e.target.value))}
+              disabled={!selectedVehicle}
+              className={cn(
+                "w-full rounded-xl border border-soft-gray bg-white px-4 py-2.5 text-sm text-dark outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200 transition-all cursor-pointer",
+                !selectedVehicle && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <option value={0}>— Pilih Tarif —</option>
+              {tarifPresets.map((t) => (
+                <option key={t} value={t}>{fmtRupiah(t)} / kg</option>
+              ))}
+            </select>
+
+            {/* Manual edit input */}
+            <div className="flex items-center gap-2 rounded-xl border border-soft-gray bg-very-light-gray px-4 py-2.5">
+              <span className="text-xs text-gray-400 shrink-0">Atau edit manual:</span>
+              <span className="text-xs text-gray-500 font-medium shrink-0">Rp</span>
+              <input
+                type="number"
+                value={selectedTarif || ''}
+                onChange={(e) => setSelectedTarif(Number(e.target.value))}
+                disabled={!selectedVehicle}
+                placeholder="Ketik tarif (per kg)..."
+                className={cn(
+                  "w-full bg-transparent text-sm font-mono tabular-nums text-dark outline-none",
+                  !selectedVehicle && "opacity-50 cursor-not-allowed"
+                )}
+                min={0}
+              />
+              <span className="text-xs text-gray-400 shrink-0">/ kg</span>
+            </div>
+
+            {selectedTarif > 0 && (
+              <p className="text-xs text-primary font-medium">
+                ✓ Tarif terpilih: {fmtRupiah(selectedTarif)} per kg
+              </p>
+            )}
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3 border-t border-soft-gray">
+            <Button type="button" variant="outline" onClick={() => {
+              setIsResiduModalOpen(false);
+              setSelectedVehicle('');
+              setSelectedTarif(0);
+            }}>Batal</Button>
+            <Button
+              type="submit"
+              disabled={!selectedVehicle || selectedTarif <= 0}
+              className="bg-amber-500 hover:bg-amber-600 border-amber-500 text-white disabled:opacity-50"
+            >
+              Simpan Tarif
+            </Button>
           </div>
         </form>
       </Modal>

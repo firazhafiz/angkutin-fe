@@ -34,10 +34,8 @@ import {
 
 // ──────────────────────────────────────────────────────────
 // Admin Dashboard — Overview Analytics
-// Item 31 dari PRD
 // ──────────────────────────────────────────────────────────
 
-// Formatter Rupiah
 const fmtRupiah = (n: number) =>
   new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -45,14 +43,12 @@ const fmtRupiah = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-// Formatter angka ringkas
 const fmtShort = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}jt`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}rb`;
   return n.toString();
 };
 
-// Custom tooltip
 const ChartTooltip = ({
   active,
   payload,
@@ -64,7 +60,7 @@ const ChartTooltip = ({
 }) => {
   if (!active || !payload) return null;
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-lg">
+    <div className="rounded-xl border border-soft-gray bg-white px-4 py-3 shadow-lg">
       <p className="mb-1.5 text-xs font-semibold text-gray-500">{label}</p>
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2 text-xs">
@@ -73,7 +69,7 @@ const ChartTooltip = ({
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-gray-600">{entry.name}:</span>
-          <span className="font-bold text-gray-900">
+          <span className="font-bold text-dark">
             {entry.name.includes('revenue') || entry.name.includes('Revenue') || entry.name.includes('Beban')
               ? fmtRupiah(entry.value)
               : `${entry.value} kg`}
@@ -84,13 +80,12 @@ const ChartTooltip = ({
   );
 };
 
-// Columns untuk tabel metrik harian
 const dailyColumns: Column<DailyOrderMetric>[] = [
   {
     key: 'date',
     header: 'Tanggal',
     render: (item) => (
-      <span className="font-medium text-gray-900">
+      <span className="font-medium text-dark">
         {new Date(item.date).toLocaleDateString('id-ID', {
           day: 'numeric',
           month: 'short',
@@ -104,7 +99,7 @@ const dailyColumns: Column<DailyOrderMetric>[] = [
     header: 'Total Order',
     align: 'center',
     render: (item) => (
-      <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-gray-100 px-2 text-xs font-bold text-gray-700">
+      <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-soft-gray px-2 text-xs font-bold text-dark">
         {item.totalOrders}
       </span>
     ),
@@ -114,7 +109,7 @@ const dailyColumns: Column<DailyOrderMetric>[] = [
     header: 'Selesai',
     align: 'center',
     render: (item) => (
-      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+      <span className="inline-flex items-center rounded-full bg-primary-light px-2.5 py-0.5 text-xs font-semibold text-primary">
         {item.completed}
       </span>
     ),
@@ -143,14 +138,16 @@ const dailyColumns: Column<DailyOrderMetric>[] = [
     key: 'avgWeightKg',
     header: 'Rata² Berat',
     align: 'right',
-    render: (item) => <span>{item.avgWeightKg} kg</span>,
+    numeric: true,
+    render: (item) => <span className="font-mono tabular-nums text-gray-700">{item.avgWeightKg} kg</span>,
   },
   {
     key: 'revenue',
     header: 'Revenue',
     align: 'right',
+    numeric: true,
     render: (item) => (
-      <span className="font-semibold text-gray-900">{fmtRupiah(item.revenue)}</span>
+      <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.revenue)}</span>
     ),
   },
 ];
@@ -161,15 +158,15 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* ───── Page Header ───── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-soft-gray">
         <div>
-          <h2 className="text-xl md:text-2xl font-extrabold text-gray-900">Overview</h2>
+          <h2 className="text-xl md:text-2xl font-extrabold text-dark">Overview</h2>
           <p className="text-xs md:text-sm text-gray-500 mt-1">
             Ringkasan aktivitas Angkutin — data per 7 hari terakhir
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select className="w-full sm:w-auto rounded-xl border border-gray-200 bg-gray-50 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium text-gray-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 shadow-sm transition-all cursor-pointer hover:bg-white hover:border-gray-300">
+          <select className="w-full sm:w-auto rounded-xl border border-soft-gray bg-very-light-gray px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm transition-all cursor-pointer hover:bg-white hover:border-gray-300">
             <option>7 Hari Terakhir</option>
             <option>30 Hari Terakhir</option>
             <option>Bulan Ini</option>
@@ -178,12 +175,12 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ───── Stats Grid ───── */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
         <StatsCard
           label="Total Order"
           value={analytics.totalOrders}
           icon={Package}
-          trend={{ value: 12.5, direction: 'up' }}
+          trend={{ value: 12, direction: 'up' }}
           iconColor="bg-gradient-to-br from-blue-500 to-blue-600"
         />
         <StatsCard
@@ -191,14 +188,14 @@ export default function AdminDashboardPage() {
           value={fmtRupiah(analytics.totalRevenue)}
           icon={TrendingUp}
           trend={{ value: 8.3, direction: 'up' }}
-          iconColor="bg-gradient-to-br from-emerald-500 to-teal-600"
+          iconColor="bg-gradient-to-br from-primary to-secondary"
         />
         <StatsCard
           label="Mutu (kg)"
           value={analytics.totalMutuKg}
           icon={Recycle}
           trend={{ value: 5.1, direction: 'up' }}
-          iconColor="bg-gradient-to-br from-green-500 to-green-600"
+          iconColor="bg-gradient-to-br from-secondary to-primary"
         />
         <StatsCard
           label="Residu (kg)"
@@ -229,7 +226,7 @@ export default function AdminDashboardPage() {
           title="Mutu vs Residu"
           subtitle="Perbandingan berat (kg) per hari"
           action={
-            <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-600">
+            <span className="rounded-lg bg-primary-light px-2.5 py-1 text-[10px] font-semibold text-primary">
               Mingguan
             </span>
           }
@@ -258,7 +255,7 @@ export default function AdminDashboardPage() {
               <Bar
                 dataKey="mutu"
                 name="Mutu"
-                fill="#10b981"
+                fill="#059669"
                 radius={[6, 6, 0, 0]}
                 maxBarSize={32}
               />
@@ -278,7 +275,7 @@ export default function AdminDashboardPage() {
           title="Revenue vs Beban"
           subtitle="Pendapatan dan pengeluaran harian"
           action={
-            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600">
+            <span className="rounded-lg bg-primary-light px-2.5 py-1 text-[10px] font-semibold text-primary">
               Mingguan
             </span>
           }
@@ -287,8 +284,8 @@ export default function AdminDashboardPage() {
             <AreaChart data={mockRevenueChart}>
               <defs>
                 <linearGradient id="gradientRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#016a70" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#016a70" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradientBeban" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#ef4444" stopOpacity={0.2} />
@@ -319,7 +316,7 @@ export default function AdminDashboardPage() {
                 type="monotone"
                 dataKey="revenue"
                 name="Revenue"
-                stroke="#10b981"
+                stroke="#016a70"
                 strokeWidth={2}
                 fill="url(#gradientRevenue)"
               />
@@ -341,7 +338,7 @@ export default function AdminDashboardPage() {
         title="Metrik Order Harian"
         subtitle="Detail performa order per hari"
         action={
-          <button className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50">
+          <button className="rounded-lg border border-soft-gray px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-very-light-gray hover:border-gray-300">
             Export CSV
           </button>
         }
@@ -355,20 +352,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-/**
- * 👉 Practice Zone — Things to Do (Dashboard):
- * 
- * 1. Filter Tanggal Interaktif:
- *    - Buat state `const [filter, setFilter] = useState('7hari')`
- *    - Hubungkan dengan `<select>` via `value` dan `onChange`.
- *    - Gunakan state ini untuk men-trigger fetch ulang (re-fetch) data dari `services` atau merender data mock yang berbeda.
- * 
- * 2. Skeleton Loading:
- *    - Buat kondisi `const [isLoading, setIsLoading] = useState(true)` dan tiru fetch data menggunakan `useEffect` + `setTimeout`.
- *    - Saat `isLoading` bernilai `true`, render komponen Skeleton (kotak abu-abu beranimasi `animate-pulse`) sebagai ganti `<StatsCard>` dan `<ChartCard>`.
- * 
- * 3. Navigasi Baris Tabel:
- *    - Gunakan fitur klik baris (row click) jika tersedia di `<DataTable>`.
- *    - Saat baris di-klik, arahkan user ke detail order/aktivitas pada tanggal tersebut menggunakan `router.push('/admin/orders?date=...')`.
- */

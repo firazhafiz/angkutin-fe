@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Eye, Ban, Plus, Trash2, Pencil, Star, RefreshCcw, Truck } from 'lucide-react';
+import { Search, Eye, Ban, Plus, Trash2, Pencil, RefreshCcw, Truck } from 'lucide-react';
 import DataTable, { type Column } from '@/components/admin/DataTable';
 import { mockCouriers } from '@/services/mock/admin.mock';
 import type { CourierProfile } from '@/types/models';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/cn';
 
-// Extend CourierProfile locally for suspended state if not in models
+// Extend CourierProfile locally for suspended state
 interface ExtendedCourier extends CourierProfile {
   isSuspended?: boolean;
 }
@@ -19,13 +19,11 @@ export default function CouriersPage() {
   const [search, setSearch] = useState('');
   const [couriers, setCouriers] = useState<ExtendedCourier[]>(mockCouriers);
 
-  // Modals state
   const [selectedCourier, setSelectedCourier] = useState<ExtendedCourier | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Filter couriers based on search
   const filteredCouriers = couriers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -65,7 +63,7 @@ export default function CouriersPage() {
         <div className="flex items-center justify-center">
           <button
             onClick={() => toggleSuspend(courier.id)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-colors border border-emerald-100 shadow-sm"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light text-primary hover:bg-primary hover:text-white transition-colors border border-primary/20 shadow-sm"
             title="Unsuspend Kurir"
           >
             <RefreshCcw size={16} />
@@ -85,7 +83,7 @@ export default function CouriersPage() {
         </button>
         <button
           onClick={() => openEditForm(courier)}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-primary/60 hover:bg-primary-light hover:text-primary transition-colors"
           title="Edit Data"
         >
           <Pencil size={14} />
@@ -97,7 +95,10 @@ export default function CouriersPage() {
         >
           <Ban size={14} />
         </button>
-        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" title="Hapus">
+        <button
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-soft-gray hover:text-gray-600 transition-colors"
+          title="Hapus"
+        >
           <Trash2 size={14} />
         </button>
       </div>
@@ -109,11 +110,11 @@ export default function CouriersPage() {
       key: 'name', header: 'Nama Kurir',
       render: (item) => (
         <div className={cn("flex items-center gap-3", item.isSuspended && "opacity-40 grayscale")}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-xs font-bold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-xs font-bold text-white shrink-0">
             {item.name.charAt(0)}
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+            <p className="text-sm font-semibold text-dark">{item.name}</p>
             <p className="text-xs text-gray-400">{item.email}</p>
           </div>
         </div>
@@ -122,12 +123,15 @@ export default function CouriersPage() {
     {
       key: 'vehicleType', header: 'Kendaraan',
       render: (item) => (
-        <span className={cn("rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 capitalize", item.isSuspended && "opacity-40 grayscale")}>
+        <span className={cn("rounded-full bg-soft-gray px-2.5 py-0.5 text-xs font-medium text-dark capitalize", item.isSuspended && "opacity-40 grayscale")}>
           {item.vehicleType.replace('_', ' ')}
         </span>
       ),
     },
-    { key: 'vehiclePlate', header: 'Plat Nomor', render: (item) => <span className={cn("font-medium", item.isSuspended && "opacity-40 grayscale")}>{item.vehiclePlate}</span> },
+    {
+      key: 'vehiclePlate', header: 'Plat Nomor',
+      render: (item) => <span className={cn("font-medium text-dark", item.isSuspended && "opacity-40 grayscale")}>{item.vehiclePlate}</span>
+    },
     {
       key: 'isOnline', header: 'Status', align: 'center',
       render: (item) => {
@@ -135,26 +139,22 @@ export default function CouriersPage() {
           return <span className="rounded-full bg-gray-200 border border-gray-300 px-2.5 py-0.5 text-xs font-semibold text-gray-600">Suspended</span>;
         }
         return (
-          <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold', item.isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400')}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', item.isOnline ? 'bg-emerald-500' : 'bg-gray-400')} />
+          <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+            item.isOnline ? 'bg-primary-light text-primary' : 'bg-soft-gray text-gray-400'
+          )}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', item.isOnline ? 'bg-primary' : 'bg-gray-400')} />
             {item.isOnline ? 'Online' : 'Offline'}
           </span>
         );
       },
     },
     {
-      key: 'rating', header: 'Rating', align: 'center',
-      render: (item) => (
-        <span className={cn("flex items-center justify-center gap-1 text-sm font-bold text-amber-500", item.isSuspended && "opacity-40 grayscale")}>
-          <Star size={14} className="fill-amber-500 text-amber-500" /> {item.rating}
-        </span>
-      ),
+      key: 'totalDeliveries', header: 'Deliveries', align: 'right', numeric: true,
+      render: (item) => <span className={cn("font-mono tabular-nums font-medium text-dark", item.isSuspended && "opacity-40 grayscale")}>{item.totalDeliveries}</span>
     },
-    { key: 'totalDeliveries', header: 'Deliveries', align: 'right', render: (item) => <span className={cn("font-medium text-gray-900", item.isSuspended && "opacity-40 grayscale")}>{item.totalDeliveries}</span> },
     { key: 'actions', header: 'Aksi', align: 'center', render: (item) => <ActionButtons courier={item} /> },
   ];
 
-  // Form Submit (Add / Edit)
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -179,26 +179,30 @@ export default function CouriersPage() {
         vehicleType: formData.get('vehicleType') as any,
         vehiclePlate: formData.get('vehiclePlate') as string,
         isOnline: false,
-        rating: 0,
         totalDeliveries: 0,
         isSuspended: false,
+        rating: 0
       };
       setCouriers([newCourier, ...couriers]);
     }
     setIsFormModalOpen(false);
   };
 
+  // Summary stats
+  const onlineCount = couriers.filter(c => c.isOnline && !c.isSuspended).length;
+  const offlineCount = couriers.filter(c => !c.isOnline && !c.isSuspended).length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-900">Daftar Kurir</h2>
+          <h2 className="text-xl font-extrabold text-dark">Daftar Kurir</h2>
           <p className="text-sm text-gray-500">Kelola data kurir yang bertugas menjemput sampah</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 rounded-xl border border-soft-gray bg-white px-3 py-2 w-full sm:w-auto">
             <Search size={14} className="text-gray-400" />
             <input
               type="text"
@@ -210,7 +214,7 @@ export default function CouriersPage() {
           </div>
           <Button
             onClick={openAddForm}
-            className="w-full sm:w-auto gap-2"
+            className="w-full sm:w-auto gap-2 bg-primary hover:bg-[#015558] border-primary hover:border-[#015558] text-white"
           >
             <Plus size={16} />
             Tambah Kurir
@@ -218,8 +222,33 @@ export default function CouriersPage() {
         </div>
       </div>
 
+      {/* Status Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-soft-gray bg-white p-4 flex items-center gap-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Online</p>
+            <p className="text-2xl font-extrabold text-dark">{onlineCount}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-soft-gray bg-white p-4 flex items-center gap-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-gray-400 shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Offline</p>
+            <p className="text-2xl font-extrabold text-dark">{offlineCount}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-soft-gray bg-white p-4 flex items-center gap-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-gray-300 shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Total Kurir</p>
+            <p className="text-2xl font-extrabold text-dark">{couriers.length}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Courier Table */}
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-soft-gray bg-white shadow-sm overflow-hidden">
         <DataTable
           columns={courierColumns}
           data={filteredCouriers}
@@ -248,12 +277,12 @@ export default function CouriersPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-900">Tipe Kendaraan</label>
+              <label className="text-sm font-semibold text-dark">Tipe Kendaraan</label>
               <select
                 name="vehicleType"
                 required
                 defaultValue={selectedCourier?.vehicleType}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                className="w-full rounded-xl border border-soft-gray bg-white px-4 py-2.5 text-sm text-dark outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               >
                 <option value="MOTOR">Motor</option>
                 <option value="MOBIL_PICKUP">Mobil Pickup</option>
@@ -263,11 +292,11 @@ export default function CouriersPage() {
             <Input name="vehiclePlate" label="Plat Nomor" defaultValue={selectedCourier?.vehiclePlate} placeholder="B 1234 XYZ" required />
           </div>
 
-          <div className="pt-4 mt-2 flex justify-end gap-3 border-t border-gray-100">
+          <div className="pt-4 mt-2 flex justify-end gap-3 border-t border-soft-gray">
             <Button type="button" variant="outline" onClick={() => setIsFormModalOpen(false)}>
               Batal
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="bg-primary hover:bg-[#015558] border-primary text-white">
               {isEditMode ? "Simpan Perubahan" : "Simpan Data Kurir"}
             </Button>
           </div>
@@ -284,32 +313,30 @@ export default function CouriersPage() {
         {selectedCourier && (
           <div className="space-y-6">
             {/* Header Info */}
-            <div className="flex items-center gap-5 border-b border-gray-100 pb-5">
+            <div className="flex items-center gap-5 border-b border-soft-gray pb-5">
               <div className={cn("flex h-20 w-20 items-center justify-center rounded-full text-3xl font-bold text-white shadow-md",
-                selectedCourier.isSuspended ? "bg-gray-400" : "bg-gradient-to-br from-blue-400 to-indigo-500")}>
+                selectedCourier.isSuspended ? "bg-gray-400" : "bg-gradient-to-br from-primary to-secondary")}>
                 {selectedCourier.name.charAt(0)}
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-gray-900">{selectedCourier.name}</h3>
+                  <h3 className="text-xl font-bold text-dark">{selectedCourier.name}</h3>
                   {selectedCourier.isSuspended ? (
                     <span className="rounded-full bg-red-50 border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-500">
                       Suspended
                     </span>
                   ) : (
-                    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold', selectedCourier.isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500')}>
-                      <span className={cn('h-1.5 w-1.5 rounded-full', selectedCourier.isOnline ? 'bg-emerald-500' : 'bg-gray-400')} />
-                      {selectedCourier.isOnline ? 'Sedang Online' : 'Offline'}
+                    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
+                      selectedCourier.isOnline ? 'bg-primary-light text-primary' : 'bg-soft-gray text-gray-500'
+                    )}>
+                      <span className={cn('h-1.5 w-1.5 rounded-full', selectedCourier.isOnline ? 'bg-primary' : 'bg-gray-400')} />
+                      {selectedCourier.isOnline ? 'Online' : 'Offline'}
                     </span>
                   )}
                 </div>
                 <p className="text-sm text-gray-500">{selectedCourier.email}</p>
                 <div className="mt-2 flex gap-3 text-sm">
-                  <span className="flex items-center gap-1 font-bold text-gray-700">
-                    <Star size={14} className="fill-amber-500 text-amber-500" /> {selectedCourier.rating} Rating
-                  </span>
-                  <span className="text-gray-300">•</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-dark">
                     {selectedCourier.totalDeliveries} Pengiriman Selesai
                   </span>
                 </div>
@@ -318,58 +345,56 @@ export default function CouriersPage() {
 
             {/* Stats / Details Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="rounded-xl bg-blue-50 p-4 border border-blue-100">
-                <span className="text-xs font-semibold uppercase tracking-wider text-blue-500">Tipe Kendaraan</span>
-                <p className="mt-1 font-bold text-gray-900 capitalize">{selectedCourier.vehicleType.replace('_', ' ')}</p>
+              <div className="rounded-xl bg-primary-light p-4 border border-primary/20">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">Tipe Kendaraan</span>
+                <p className="mt-1 font-bold text-dark capitalize">{selectedCourier.vehicleType.replace('_', ' ')}</p>
               </div>
-              <div className="rounded-xl bg-indigo-50 p-4 border border-indigo-100">
-                <span className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Plat Nomor</span>
-                <p className="mt-1 font-bold text-gray-900">{selectedCourier.vehiclePlate}</p>
+              <div className="rounded-xl bg-soft-gray p-4 border border-gray-200">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Plat Nomor</span>
+                <p className="mt-1 font-bold text-dark">{selectedCourier.vehiclePlate}</p>
               </div>
-              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+              <div className="rounded-xl bg-very-light-gray p-4 border border-soft-gray">
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">No. Telepon</span>
-                <p className="mt-1 font-bold text-gray-900">{selectedCourier.phone}</p>
+                <p className="mt-1 font-bold text-dark">{selectedCourier.phone}</p>
               </div>
-              <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Bergabung</span>
-                <p className="mt-1 font-bold text-gray-900">
+              <div className="rounded-xl bg-primary-light/50 p-4 border border-primary/10">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">Bergabung</span>
+                <p className="mt-1 font-bold text-dark">
                   {new Date(selectedCourier.createdAt).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
                 </p>
               </div>
             </div>
 
-            {/* Dummy Mock History for Demo */}
+            {/* Dummy Mission History */}
             <div>
-              <h4 className="mb-3 text-sm font-bold text-gray-900 flex justify-between items-center">
+              <h4 className="mb-3 text-sm font-bold text-dark flex justify-between items-center">
                 <span>Histori Misi Terakhir</span>
                 <button className="text-xs text-primary hover:underline font-semibold">Lihat Semua</button>
               </h4>
               <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 rounded-xl border border-gray-100 text-sm hover:bg-gray-50 transition-colors">
+                <div className="flex justify-between items-center p-3 rounded-xl border border-soft-gray text-sm hover:bg-very-light-gray transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-light text-primary">
                       <Truck size={16} />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">Penjemputan #ORD-120</p>
+                      <p className="font-semibold text-dark">Penjemputan #ORD-120</p>
                       <p className="text-xs text-gray-500">Jl. Merdeka Raya No. 45</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-emerald-600">+ Rp 12.500</p>
+                    <p className="font-semibold text-primary">+ Rp 12.500</p>
                     <p className="text-xs text-gray-400">Hari ini, 14:30</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+            <div className="pt-4 flex justify-end gap-3 border-t border-soft-gray">
               {selectedCourier.isSuspended ? (
                 <Button
-                  className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white gap-2"
-                  onClick={() => {
-                    toggleSuspend(selectedCourier.id);
-                  }}
+                  className="bg-secondary hover:bg-[#047857] border-secondary text-white gap-2"
+                  onClick={() => toggleSuspend(selectedCourier.id)}
                 >
                   <RefreshCcw size={16} /> Unsuspend Akun
                 </Button>
@@ -377,9 +402,7 @@ export default function CouriersPage() {
                 <Button
                   variant="outline"
                   className="text-red-500 hover:bg-red-50 hover:text-red-600 border-red-200"
-                  onClick={() => {
-                    toggleSuspend(selectedCourier.id);
-                  }}
+                  onClick={() => toggleSuspend(selectedCourier.id)}
                 >
                   Suspend Akun
                 </Button>

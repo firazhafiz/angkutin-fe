@@ -158,19 +158,18 @@ export interface GatewayTransaction {
   orderId: string;
   userId: string;
   userName: string;
-  method: "qris" | "va";
+  method: "qris";
   amount: number;
-  scenario: "B" | "C";
-  status: "pending" | "success" | "failed" | "expired";
+  status: "success" | "failed";
   createdAt: string;
 }
 
 export const mockGatewayLogs: GatewayTransaction[] = [
-  { id: "g1", orderId: "ord-095", userId: "u3", userName: "Budi Santoso", method: "qris", amount: 25_000, scenario: "B", status: "success", createdAt: "2026-04-28T16:20:00" },
-  { id: "g2", orderId: "ord-098", userId: "u4", userName: "Dewi Lestari", method: "va", amount: 42_000, scenario: "C", status: "pending", createdAt: "2026-04-28T17:10:00" },
-  { id: "g3", orderId: "ord-100", userId: "u6", userName: "Nurul Hidayah", method: "qris", amount: 18_500, scenario: "B", status: "success", createdAt: "2026-04-28T18:45:00" },
-  { id: "g4", orderId: "ord-102", userId: "u2", userName: "Siti Aisyah", method: "va", amount: 55_000, scenario: "C", status: "failed", createdAt: "2026-04-28T19:30:00" },
-  { id: "g5", orderId: "ord-105", userId: "u5", userName: "Rudi Hermawan", method: "qris", amount: 31_200, scenario: "C", status: "success", createdAt: "2026-04-29T08:15:00" },
+  { id: "g1", orderId: "ord-095", userId: "u3", userName: "Budi Santoso", method: "qris", amount: 25_000, status: "success", createdAt: "2026-04-28T16:20:00" },
+  { id: "g2", orderId: "ord-098", userId: "u4", userName: "Dewi Lestari", method: "qris", amount: 42_000, status: "failed", createdAt: "2026-04-28T17:10:00" },
+  { id: "g3", orderId: "ord-100", userId: "u6", userName: "Nurul Hidayah", method: "qris", amount: 18_500, status: "success", createdAt: "2026-04-28T18:45:00" },
+  { id: "g4", orderId: "ord-102", userId: "u2", userName: "Siti Aisyah", method: "qris", amount: 55_000, status: "failed", createdAt: "2026-04-28T19:30:00" },
+  { id: "g5", orderId: "ord-105", userId: "u5", userName: "Rudi Hermawan", method: "qris", amount: 31_200, status: "success", createdAt: "2026-04-29T08:15:00" },
 ];
 
 // ──────────────────────────────────────────────────────────
