@@ -46,7 +46,7 @@ const menuItems: MenuItem[] = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: 'layout-dashboard' },
   { label: 'Tarif Harga', href: '/admin/pricing', icon: 'tag' },
   { label: 'Armada', href: '/admin/fleet', icon: 'truck' },
-  { label: 'Terminal QR', href: '/admin/terminal', icon: 'scan-line' },
+  // { label: 'Terminal QR', href: '/admin/terminal', icon: 'scan-line' },
   { label: 'Pengguna', href: '/admin/users', icon: 'users' },
   { label: 'Kurir', href: '/admin/couriers', icon: 'bike' },
   { label: 'Keuangan', href: '/admin/finance', icon: 'banknote' },
