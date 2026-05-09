@@ -162,7 +162,7 @@ export default function AdminDashboardPage() {
         <div>
           <h2 className="text-xl md:text-2xl font-extrabold text-dark">Overview</h2>
           <p className="text-xs md:text-sm text-gray-500 mt-1">
-            Ringkasan aktivitas Angkutin — data per 7 hari terakhir
+            Ringkasan aktivitas Angkutin
           </p>
         </div>
         <div className="flex items-center gap-2">

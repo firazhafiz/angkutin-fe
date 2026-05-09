@@ -91,8 +91,8 @@ export default function Sidebar({
       {/* ───── Sidebar ───── */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-gray-100',
-          'bg-white transition-all duration-300 ease-in-out',
+          'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-gray-100 dark:border-gray-800',
+          'bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out',
           collapsed ? 'md:w-[72px]' : 'md:w-[260px]',
           // Mobile: hidden by default, shown when mobileOpen
           mobileOpen
@@ -101,44 +101,43 @@ export default function Sidebar({
         )}
       >
         {/* ───── Logo Area ───── */}
-        <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
+        <div className="flex h-16 items-center justify-between border-b border-gray-100 dark:border-gray-800 px-4">
           <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                'bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-700'
-              )}
-            >
-              <Image
-                src="/logo/trash-white.svg"
-                alt="Angkutin"
-                width={22}
-                height={22}
-                className="brightness-0 invert"
-              />
-            </div>
             {!collapsed && (
-              <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-bold text-gray-900 tracking-tight">Angkutin</span>
-                <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Admin Panel</span>
-              </div>
+              <Image
+                src="/logo/angkutin_tosca.png"
+                alt="Angkutin"
+                width={120}
+                height={32}
+                className="object-contain"
+              />
             )}
           </div>
-          {/* Mobile close button */}
-          <button
-            onClick={onMobileClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 md:hidden"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Collapse toggle — desktop only */}
+            <button
+              onClick={onToggleCollapse}
+              className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title={collapsed ? "Buka Sidebar" : "Tutup Sidebar"}
+            >
+              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
+            {/* Mobile close button */}
+            <button
+              onClick={onMobileClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
+            >
+               <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* ───── Navigation ───── */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4">
           <div className={cn('mb-3 px-2', collapsed && 'hidden')}>
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+            {/* <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
               Menu Utama
-            </span>
+            </span> */}
           </div>
 
           <ul className="space-y-1">
@@ -154,8 +153,8 @@ export default function Sidebar({
                       'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
                       'transition-all duration-200',
                       isActive
-                        ? (collapsed ? 'text-emerald-700' : 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm')
-                        : (collapsed ? 'text-gray-500 hover:text-gray-900' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'),
+                        ? (collapsed ? 'text-emerald-700 dark:text-emerald-400' : 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 text-emerald-700 dark:text-emerald-400 shadow-sm')
+                        : (collapsed ? 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'),
                       collapsed && 'justify-center px-2'
                     )}
                     title={collapsed ? item.label : undefined}
@@ -164,8 +163,8 @@ export default function Sidebar({
                       className={cn(
                         'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200',
                         isActive
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                          : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-gray-600'
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 dark:shadow-none'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 group-hover:text-gray-600 dark:group-hover:text-gray-300'
                       )}
                     >
                       <IconComp size={16} />
@@ -186,32 +185,18 @@ export default function Sidebar({
         </nav>
 
         {/* ───── Bottom Section ───── */}
-        <div className="border-t border-gray-100 px-3 py-3 space-y-2">
-          {/* Collapse toggle — desktop only */}
-          <button
-            onClick={onToggleCollapse}
-            className={cn(
-              'hidden md:flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
-              'text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600',
-              collapsed && 'justify-center px-2'
-            )}
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-              {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </div>
-            {!collapsed && <span>Tutup Sidebar</span>}
-          </button>
+        <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-3 space-y-2">
 
           {/* Logout */}
           <button
             onClick={onLogout}
             className={cn(
               'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
-              'text-red-400 transition-colors hover:bg-red-50 hover:text-red-600',
+              'text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400',
               collapsed && 'justify-center px-2'
             )}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-400">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-400">
               <LogOut size={16} />
             </div>
             {!collapsed && <span>Keluar</span>}

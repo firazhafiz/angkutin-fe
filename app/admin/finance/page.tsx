@@ -178,7 +178,7 @@ export default function FinancePage() {
             onClick={() => setTab(key)}
             className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-all', tab === key ? 'bg-white text-dark shadow-sm' : 'text-gray-500 hover:text-dark')}
           >
-            {key === 'withdrawals' ? 'Penarikan Saldo' : 'Payment Gateway'}
+            {key === 'withdrawals' ? 'Penarikan Saldo' : 'Riwayat Transaksi'}
           </button>
         ))}
       </div>

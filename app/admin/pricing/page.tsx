@@ -39,6 +39,7 @@ export default function PricingPage() {
   const [residuData, setResiduData] = useState(mockResiduPricing);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
+  const [editLabel, setEditLabel] = useState<string>('');
 
   // Modal states
   const [isMutuModalOpen, setIsMutuModalOpen] = useState(false);
@@ -49,20 +50,22 @@ export default function PricingPage() {
   const [selectedTarif, setSelectedTarif] = useState<number>(0);
 
   // -- Edit Logic
-  const startEdit = (id: string, currentPrice: number) => {
+  const startEdit = (id: string, currentPrice: number, currentLabel: string) => {
     setEditingId(id);
     setEditValue(currentPrice);
+    setEditLabel(currentLabel);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditValue(0);
+    setEditLabel('');
   };
 
   const saveMutuEdit = (id: string) => {
     setMutuData((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, pricePerKg: editValue, updatedAt: new Date().toISOString().split('T')[0] } : item
+        item.id === id ? { ...item, wasteType: editLabel, pricePerKg: editValue, updatedAt: new Date().toISOString() } : item
       )
     );
     setEditingId(null);
@@ -71,7 +74,7 @@ export default function PricingPage() {
   const saveResiduEdit = (id: string) => {
     setResiduData((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, pricePerKg: editValue, updatedAt: new Date().toISOString().split('T')[0] } : item
+        item.id === id ? { ...item, vehicleLabel: editLabel, pricePerKg: editValue, updatedAt: new Date().toISOString() } : item
       )
     );
     setEditingId(null);
@@ -131,7 +134,17 @@ export default function PricingPage() {
       render: (item) => (
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-secondary shrink-0" />
-          <span className="font-medium text-dark">{item.wasteType}</span>
+          {editingId === item.id ? (
+            <input
+              type="text"
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              className="w-full rounded-lg border border-primary px-2 py-1 text-sm font-medium text-dark outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Nama komoditas..."
+            />
+          ) : (
+            <span className="font-medium text-dark">{item.wasteType}</span>
+          )}
         </div>
       ),
     },
@@ -142,32 +155,18 @@ export default function PricingPage() {
       numeric: true,
       render: (item) =>
         editingId === item.id ? (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end">
             <input
               type="number"
               value={editValue}
               onChange={(e) => setEditValue(Number(e.target.value))}
-              className="w-28 rounded-lg border border-primary/30 px-2 py-1 text-right text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-28 rounded-lg border border-primary px-2 py-1 text-right text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20"
               autoFocus
             />
-            <button onClick={() => saveMutuEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white hover:bg-[#015558]">
-              <Check size={14} />
-            </button>
-            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-soft-gray text-gray-500 hover:bg-gray-200">
-              <X size={14} />
-            </button>
           </div>
         ) : (
-          <div className="relative flex items-center justify-end group">
+          <div className="flex items-center justify-end">
             <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.pricePerKg)}</span>
-            <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex gap-1 bg-white px-1 opacity-0 transition-opacity group-hover:opacity-100 shadow-sm rounded-lg">
-              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-primary-light hover:text-primary">
-                <Pencil size={12} />
-              </button>
-              <button onClick={() => deleteMutu(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
-                <Trash2 size={12} />
-              </button>
-            </div>
           </div>
         ),
     },
@@ -181,6 +180,50 @@ export default function PricingPage() {
             day: 'numeric', month: 'short', year: 'numeric',
           })}
         </span>
+      ),
+    },
+    {
+      key: 'id' as any,
+      header: 'Aksi',
+      align: 'center',
+      render: (item) => (
+        <div className="flex items-center justify-center gap-2">
+          {editingId === item.id ? (
+            <>
+              <button
+                onClick={() => saveMutuEdit(item.id)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white hover:bg-[#015558] transition-all shadow-md"
+                title="Simpan"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all shadow-sm"
+                title="Batal"
+              >
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => startEdit(item.id, item.pricePerKg, item.wasteType)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm"
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => deleteMutu(item.id)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                title="Hapus"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
+        </div>
       ),
     },
   ];
@@ -192,7 +235,17 @@ export default function PricingPage() {
       render: (item) => (
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-          <span className="font-medium text-dark">{item.vehicleLabel}</span>
+          {editingId === item.id ? (
+            <input
+              type="text"
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              className="w-full rounded-lg border border-amber-500 px-2 py-1 text-sm font-medium text-dark outline-none focus:ring-2 focus:ring-amber-100"
+              placeholder="Nama kendaraan..."
+            />
+          ) : (
+            <span className="font-medium text-dark">{item.vehicleLabel}</span>
+          )}
         </div>
       ),
     },
@@ -203,32 +256,18 @@ export default function PricingPage() {
       numeric: true,
       render: (item) =>
         editingId === item.id ? (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end">
             <input
               type="number"
               value={editValue}
               onChange={(e) => setEditValue(Number(e.target.value))}
-              className="w-28 rounded-lg border border-amber-300 px-2 py-1 text-right text-sm font-mono outline-none focus:ring-2 focus:ring-amber-100"
+              className="w-28 rounded-lg border border-amber-500 px-2 py-1 text-right text-sm font-mono outline-none focus:ring-2 focus:ring-amber-100"
               autoFocus
             />
-            <button onClick={() => saveResiduEdit(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600">
-              <Check size={14} />
-            </button>
-            <button onClick={cancelEdit} className="flex h-7 w-7 items-center justify-center rounded-lg bg-soft-gray text-gray-500 hover:bg-gray-200">
-              <X size={14} />
-            </button>
           </div>
         ) : (
-          <div className="relative flex items-center justify-end group">
+          <div className="flex items-center justify-end">
             <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.pricePerKg)}</span>
-            <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex gap-1 bg-white px-1 opacity-0 transition-opacity group-hover:opacity-100 shadow-sm rounded-lg">
-              <button onClick={() => startEdit(item.id, item.pricePerKg)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-primary-light hover:text-primary">
-                <Pencil size={12} />
-              </button>
-              <button onClick={() => deleteResidu(item.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600">
-                <Trash2 size={12} />
-              </button>
-            </div>
           </div>
         ),
     },
@@ -242,6 +281,50 @@ export default function PricingPage() {
             day: 'numeric', month: 'short', year: 'numeric',
           })}
         </span>
+      ),
+    },
+    {
+      key: 'id' as any,
+      header: 'Aksi',
+      align: 'center',
+      render: (item) => (
+        <div className="flex items-center justify-center gap-2">
+          {editingId === item.id ? (
+            <>
+              <button
+                onClick={() => saveResiduEdit(item.id)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-all shadow-md"
+                title="Simpan"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all shadow-sm"
+                title="Batal"
+              >
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => startEdit(item.id, item.pricePerKg, item.vehicleLabel)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-all shadow-sm"
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => deleteResidu(item.id)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                title="Hapus"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
+        </div>
       ),
     },
   ];

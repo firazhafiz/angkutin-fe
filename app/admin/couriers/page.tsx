@@ -222,31 +222,6 @@ export default function CouriersPage() {
         </div>
       </div>
 
-      {/* Status Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-soft-gray bg-white p-4 flex items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-primary shrink-0" />
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Online</p>
-            <p className="text-2xl font-extrabold text-dark">{onlineCount}</p>
-          </div>
-        </div>
-        <div className="rounded-xl border border-soft-gray bg-white p-4 flex items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-gray-400 shrink-0" />
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Offline</p>
-            <p className="text-2xl font-extrabold text-dark">{offlineCount}</p>
-          </div>
-        </div>
-        <div className="rounded-xl border border-soft-gray bg-white p-4 flex items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-gray-300 shrink-0" />
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Total Kurir</p>
-            <p className="text-2xl font-extrabold text-dark">{couriers.length}</p>
-          </div>
-        </div>
-      </div>
-
       {/* Courier Table */}
       <div className="rounded-2xl border border-soft-gray bg-white shadow-sm overflow-hidden">
         <DataTable

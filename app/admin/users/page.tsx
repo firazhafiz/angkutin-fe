@@ -34,9 +34,6 @@ export default function UsersPage() {
       >
         <Eye size={14} />
       </button>
-      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors" title="Verifikasi">
-        <ShieldCheck size={14} />
-      </button>
       <button className="flex h-7 w-7 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Suspend/Ban">
         <Ban size={14} />
       </button>
