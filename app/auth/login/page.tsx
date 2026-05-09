@@ -14,6 +14,8 @@ import { authService } from "@/services/auth.service";
 import { LoginRequest } from "@/types/auth";
 import { toast } from "sonner";
 
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+
 export default function LoginPage() {
   const router = useRouter();
   const [isLoadingCheck, setIsLoadingCheck] = useState(true);
@@ -151,20 +153,7 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full flex cursor-pointer items-center gap-2 py-6"
-            type="button"
-          >
-            <Image
-              src="/icons/google.svg"
-              alt="Google"
-              width={18}
-              height={18}
-              className="mr-1"
-            />
-            Google
-          </Button>
+          <GoogleAuthButton mode="login" />
 
           <p className="text-center text-sm text-gray-500 mt-8">
             Don't have an account yet?{" "}

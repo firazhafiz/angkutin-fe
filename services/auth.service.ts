@@ -26,4 +26,10 @@ export const authService = {
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
   },
+
+  // Google Login/Register
+  async loginWithGoogle(idToken: string): Promise<LoginData> {
+    const response = await api.post<LoginResponse>("/auth/google", { idToken });
+    return response.data.data;
+  },
 };
