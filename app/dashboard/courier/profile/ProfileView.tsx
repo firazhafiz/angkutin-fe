@@ -10,22 +10,26 @@ import {
   Shield,
   Bell,
   ChevronRight,
-  Camera,
-  Star,
   Package,
   Wallet,
-  Edit3,
   LogOut,
+  Star,
+  Truck,
+  ToggleLeft,
+  ToggleRight,
+  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
-import PersonalInfoSection from "./sections/PersonalInfoSection";
-import AddressSection from "./sections/AddressSection";
-import SecuritySection from "./sections/SecuritySection";
-import NotificationSection from "./sections/NotificationSection";
 import { userService } from "@/services/user.service";
 import LogoutModal from "@/components/dashboard/LogoutModal";
+
+// Reusing User sections for now (they should be generic enough or we can duplicate if needed)
+import PersonalInfoSection from "@/app/dashboard/user/profile/sections/PersonalInfoSection";
+import AddressSection from "@/app/dashboard/user/profile/sections/AddressSection";
+import SecuritySection from "@/app/dashboard/user/profile/sections/SecuritySection";
+import NotificationSection from "@/app/dashboard/user/profile/sections/NotificationSection";
 
 type ActiveSection =
   | "overview"
@@ -41,13 +45,6 @@ const menuItems = [
     desc: "Edit name, email, phone & photo",
     icon: User,
     color: "bg-blue-50 text-blue-600",
-  },
-  {
-    id: "address" as ActiveSection,
-    label: "My Addresses",
-    desc: "Add, edit or delete saved addresses",
-    icon: MapPin,
-    color: "bg-emerald-50 text-emerald-600",
   },
   {
     id: "security" as ActiveSection,
@@ -68,6 +65,7 @@ const menuItems = [
 export default function ProfileView() {
   const [active, setActive] = useState<ActiveSection>("overview");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isOnline, setIsOnline] = useState(true); // Courier specific status
   const router = useRouter();
 
   const handleLogout = () => {
@@ -96,16 +94,28 @@ export default function ProfileView() {
 
   const userData = profileData?.data;
 
+  // Added Courier-specific mock data
   const user = {
-    name: userData?.name || "User",
-    email: userData?.email || "...",
-    phone: userData?.phone || "-",
-    avatar: userData?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.name || "User"}`,
-    joinDate: userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : "...",
-    totalOrders: 24, // Mock
-    totalPoints: 2840, // Mock
+    name: userData?.name || "Kurir Angkutin",
+    email: userData?.email || "kurir@angkutin.com",
+    phone: userData?.phone || "+62 812-3456-7890",
+    avatar:
+      userData?.avatar ||
+      `https://api.dicebear.com/7.x/avataaars/svg?seed=${
+        userData?.name || "Kurir"
+      }`,
+    joinDate: userData?.createdAt
+      ? new Date(userData.createdAt).toLocaleDateString("id-ID", {
+          month: "long",
+          year: "numeric",
+        })
+      : "April 2024",
+    totalOrders: 156, // Mock courier stats
+    totalPoints: 4200, // Mock points
     totalBalance: walletBalance,
-    tier: "Silver",
+    tier: "Gold Courier",
+    vehicleType: "Motor Bak Roda 3", // Courier specific
+    vehiclePlate: "D 1234 ABC", // Courier specific
   };
 
   if (active === "personal")
@@ -120,7 +130,7 @@ export default function ProfileView() {
     return <NotificationSection onBack={() => setActive("overview")} />;
 
   return (
-    <DashboardLayout role="user">
+    <DashboardLayout role="courier">
       <div className="max-w-7xl mx-auto space-y-8 pb-10">
         {/* Hero Profile Card */}
         <div className="bg-dark rounded-xl p-8 text-white relative overflow-hidden">
@@ -128,7 +138,7 @@ export default function ProfileView() {
           <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full" />
 
           <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {/* Avatar */}
+            {/* Avatar & Status */}
             <div className="relative group">
               <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/40">
                 <img
@@ -136,6 +146,15 @@ export default function ProfileView() {
                   alt={user.name}
                   className="w-full h-full object-cover"
                 />
+              </div>
+              <div
+                className={cn(
+                  "absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-dark flex items-center justify-center",
+                  isOnline ? "bg-green-500" : "bg-gray-400",
+                )}
+                title={isOnline ? "Online" : "Offline"}
+              >
+                {isOnline && <CheckCircle2 size={12} className="text-white" />}
               </div>
             </div>
 
@@ -145,42 +164,64 @@ export default function ProfileView() {
                 {isProfileLoading ? (
                   <div className="h-8 w-48 bg-white/10 animate-pulse rounded-lg" />
                 ) : (
-                  <h1 className="text-2xl font-black tracking-tight">
-                    {user.name}
-                  </h1>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-black tracking-tight">
+                      {user.name}
+                    </h1>
+                    <button
+                      onClick={() => setIsOnline(!isOnline)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer",
+                        isOnline
+                          ? "bg-green-500/10 text-green-400 border-green-500/20"
+                          : "bg-white/10 text-white/50 border-white/10",
+                      )}
+                    >
+                      {isOnline ? "Menerima Order" : "Sedang Istirahat"}
+                    </button>
+                  </div>
                 )}
               </div>
               {isProfileLoading ? (
                 <div className="h-4 w-32 bg-white/10 animate-pulse rounded mt-2" />
               ) : (
-                <p className="text-white/50 text-sm font-medium">{user.email}</p>
-              )}
-              {isProfileLoading ? (
-                <div className="h-3 w-40 bg-white/5 animate-pulse rounded mt-2" />
-              ) : (
-                <p className="text-white/30 text-xs mt-1">
-                  Member since {user.joinDate}
+                <p className="text-white/50 text-sm font-medium">
+                  {user.email}
                 </p>
+              )}
+
+              {/* Courier Specific Badges */}
+              {!isProfileLoading && (
+                <div className="flex items-center gap-3 mt-3">
+                  <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full border border-white/5">
+                    <Truck size={14} className="text-secondary" />
+                    <span className="text-xs font-bold text-white/80">
+                      {user.vehicleType}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full border border-white/5">
+                    <span className="text-xs font-black tracking-widest text-white/80">
+                      {user.vehiclePlate}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-4 sm:gap-6 w-full sm:w-auto mt-4 sm:mt-0">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full sm:w-auto mt-4 sm:mt-0">
               {[
                 { label: "Orders", value: user.totalOrders, icon: Package },
-                {
-                  label: "Points",
-                  value: user.totalPoints.toLocaleString(),
-                  icon: Star,
-                },
-                { label: "Balance", value: "425k", icon: Wallet },
+                { label: "Komisi", value: "2.4M", icon: Wallet },
               ].map((s) => (
                 <div key={s.label} className="text-left sm:text-center">
-                  {s.label === "Balance" && isWalletLoading ? (
+                  {s.label === "Komisi" && isWalletLoading ? (
                     <div className="h-8 w-12 bg-white/10 animate-pulse rounded mb-1 sm:mx-auto" />
                   ) : (
                     <p className="text-2xl font-black tracking-tighter">
-                      {s.label === "Balance" ? formatBalanceK(walletBalance) : s.value}
+                      {s.label === "Komisi"
+                        ? formatBalanceK(walletBalance)
+                        : s.value}
                     </p>
                   )}
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
@@ -194,15 +235,15 @@ export default function ProfileView() {
 
         {/* Settings Menu Grid */}
         <div>
-          <h2 className="text-lg font-bold text-dark  tracking-wide mb-4 px-1">
-            Account Settings
+          <h2 className="text-lg font-bold text-dark tracking-wide mb-4 px-1">
+            Pengaturan Akun & Kendaraan
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {menuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActive(item.id)}
-                className="group bg-white p-6 rounded-xl border border-gray-100 hover:border-primary/30 transition-all text-left flex items-center gap-5"
+                className="group bg-white p-6 rounded-xl border border-gray-100 hover:border-primary/30 transition-all text-left flex items-center gap-5 cursor-pointer"
               >
                 <div
                   className={cn(
@@ -230,10 +271,10 @@ export default function ProfileView() {
         {/* Danger Zone */}
         <div className="bg-white rounded-xl border border-gray-100 p-6">
           <h2 className="text-base font-bold text-dark tracking-wide mb-4">
-            Account Actions
+            Aksi Akun
           </h2>
           <div className="space-y-3">
-            <button 
+            <button
               onClick={() => setShowLogoutModal(true)}
               className="w-full flex items-center gap-4 p-4 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-all group cursor-pointer"
             >
@@ -242,13 +283,15 @@ export default function ProfileView() {
               </div>
               <div className="text-left">
                 <p className="font-bold text-sm">Sign Out</p>
-                <p className="text-xs text-red-400">Log out from this device</p>
+                <p className="text-xs text-red-400">
+                  Keluar dari sesi kurir ini
+                </p>
               </div>
             </button>
           </div>
         </div>
 
-        <LogoutModal 
+        <LogoutModal
           isOpen={showLogoutModal}
           onClose={() => setShowLogoutModal(false)}
           onConfirm={handleLogout}
