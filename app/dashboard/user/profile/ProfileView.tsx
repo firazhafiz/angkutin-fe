@@ -100,7 +100,7 @@ export default function ProfileView() {
     name: userData?.name || "User",
     email: userData?.email || "...",
     phone: userData?.phone || "-",
-    avatar: userData?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.name || "User"}`,
+    photoUrl: userData?.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.name || "User"}`,
     joinDate: userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : "...",
     totalOrders: 24, // Mock
     totalPoints: 2840, // Mock
@@ -132,7 +132,7 @@ export default function ProfileView() {
             <div className="relative group">
               <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/40">
                 <img
-                  src={user.avatar}
+                  src={user.photoUrl}
                   alt={user.name}
                   className="w-full h-full object-cover"
                 />

@@ -99,8 +99,8 @@ export default function ProfileView() {
     name: userData?.name || "Kurir Angkutin",
     email: userData?.email || "kurir@angkutin.com",
     phone: userData?.phone || "+62 812-3456-7890",
-    avatar:
-      userData?.avatar ||
+    photoUrl:
+      userData?.photoUrl ||
       `https://api.dicebear.com/7.x/avataaars/svg?seed=${
         userData?.name || "Kurir"
       }`,
@@ -118,9 +118,12 @@ export default function ProfileView() {
     vehiclePlate: "D 1234 ABC", // Courier specific
   };
 
-  if (active === "personal")
     return (
-      <PersonalInfoSection user={user} onBack={() => setActive("overview")} />
+      <PersonalInfoSection 
+        user={user} 
+        onBack={() => setActive("overview")} 
+        role="courier"
+      />
     );
   if (active === "address")
     return <AddressSection onBack={() => setActive("overview")} />;
@@ -142,7 +145,7 @@ export default function ProfileView() {
             <div className="relative group">
               <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/40">
                 <img
-                  src={user.avatar}
+                  src={user.photoUrl}
                   alt={user.name}
                   className="w-full h-full object-cover"
                 />
