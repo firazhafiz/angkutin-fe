@@ -131,7 +131,9 @@ export default function TopBar() {
                 className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden md:hidden"
               >
                 <div className="p-4 border-b border-gray-50">
-                  <p className="text-sm font-bold text-dark">{user?.name || "User"}</p>
+                  <p className="text-sm font-bold text-dark">
+                    {user?.name || "User"}
+                  </p>
                   <p className="text-xs text-gray-400">{greeting}!</p>
                 </div>
 
@@ -166,7 +168,7 @@ export default function TopBar() {
         </div>
       </div>
 
-      <LogoutModal 
+      <LogoutModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogout}

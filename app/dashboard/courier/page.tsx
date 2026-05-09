@@ -4,101 +4,422 @@ import React, { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
-import { CheckCircle, Star, Navigation, MapPin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { walletService } from "@/services/wallet.service";
+import {
+  CheckCircle2,
+  TrendingUp,
+  History as HistoryIcon,
+  Navigation,
+  BookOpen,
+  HelpCircle,
+  MapPin,
+  Clock,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export default function CourierDashboard() {
   const [isOnline, setIsOnline] = useState(false);
+  // Order stages: 'none', 'incoming', 'to_customer', 'weighing', 'to_warehouse', 'validation'
+  const [orderStatus, setOrderStatus] = useState<
+    | "none"
+    | "incoming"
+    | "to_customer"
+    | "weighing"
+    | "to_warehouse"
+    | "validation"
+  >("incoming");
+
+  const { data: walletData, isLoading: isWalletLoading } = useQuery({
+    queryKey: ["walletBalance"],
+    queryFn: walletService.getBalance,
+  });
+
+  const walletBalance = walletData?.data?.balance || 0;
 
   return (
     <DashboardLayout role="courier">
-      <div className="space-y-8">
-        {/* Header with Online/Offline Toggle */}
-        <div className="bg-white p-6 md:p-8 rounded-4xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-bold text-dark">Dashboard Kurir</h1>
-            <p className="text-gray-500 mt-1">Status kamu saat ini: <span className={cn("font-bold", isOnline ? "text-primary" : "text-red-500")}>{isOnline ? "Online (Siap Kerja)" : "Offline"}</span></p>
+      <div className="space-y-6">
+        {/* Header Section: Welcome & Online Toggle */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl md:text-2xl font-black text-dark">
+              Halo, Kurir Angkutin! 👋
+            </h2>
+            <p className="text-sm text-slate-500 font-medium">
+              Siap untuk menjaga lingkungan hari ini?
+            </p>
           </div>
-          
-          <button 
-            onClick={() => setIsOnline(!isOnline)}
-            className={cn(
-              "relative inline-flex h-12 w-28 items-center rounded-full transition-colors focus:outline-none ring-offset-2 focus:ring-2 focus:ring-primary",
-              isOnline ? "bg-primary" : "bg-gray-200"
-            )}
-          >
-            <span className="sr-only">Toggle Online Status</span>
-            <span
+
+          <div className="flex items-center justify-between md:justify-start gap-4 rounded-xl w-full md:w-auto">
+            <div className="flex flex-col">
+              <span className="text-xs font-light text-gray-400 leading-none">
+                Status Kerja
+              </span>
+              <span
+                className={cn(
+                  "text-sm font-bold mt-1.5 transition-colors",
+                  isOnline ? "text-primary" : "text-gray-400",
+                )}
+              >
+                {isOnline ? "Online (Siap Kerja)" : "Offline (Istirahat)"}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setIsOnline(!isOnline)}
               className={cn(
-                "inline-block h-10 w-10 transform rounded-full bg-white transition-transform shadow-md",
-                isOnline ? "translate-x-16" : "translate-x-1"
+                "relative inline-flex h-11 w-20 items-center rounded-full transition-all duration-300 focus:outline-none  shadow-inner shrink-0",
+                isOnline ? "bg-primary" : "bg-gray-300",
               )}
-            />
-            <span className={cn(
-              "absolute text-[10px] font-black uppercase tracking-widest transition-all",
-              isOnline ? "left-4 text-white" : "right-4 text-gray-500"
-            )}>
-              {isOnline ? "ON" : "OFF"}
-            </span>
-          </button>
+            >
+              <div
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-lg transition-all duration-300 transform",
+                  isOnline ? "translate-x-10" : "translate-x-1",
+                )}
+              >
+                <Zap
+                  size={14}
+                  className={cn(
+                    "transition-colors",
+                    isOnline ? "text-primary fill-primary" : "text-gray-300",
+                  )}
+                />
+              </div>
+            </button>
+          </div>
         </div>
 
-        {/* Stats Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <WalletCard 
-              balance={450000} 
-              showOrderButton={false} 
+        {/* Main Dashboard Grid — 1 col mobile, 3 col desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Col 1: Order Status Card — first on mobile, col-1 on desktop */}
+          <div className="order-first lg:order-none lg:col-span-1">
+            <div className="bg-white rounded-2xl overflow-hidden border border-primary/40 flex flex-col ">
+              <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-primary/5 shrink-0">
+                <div className="flex items-center gap-2 text-primary">
+                  <Navigation
+                    size={18}
+                    className={cn(orderStatus !== "none" && "animate-pulse")}
+                  />
+                  <h3 className="text-sm font-bold  tracking-wide">
+                    {orderStatus === "incoming"
+                      ? "Order Masuk!"
+                      : "Status Order Aktif"}
+                  </h3>
+                </div>
+                <span
+                  className={cn(
+                    "text-[10px] font-bold px-2 py-1 rounded-full border",
+                    orderStatus === "incoming"
+                      ? "bg-secondary text-dark border-secondary/20"
+                      : "bg-white text-primary border-primary/20",
+                  )}
+                >
+                  {orderStatus === "incoming" ? "Baru" : "Sedang Berjalan"}
+                </span>
+              </div>
+
+              <div className="p-5 flex-1 flex flex-col">
+                {isOnline ? (
+                  <>
+                    {/* Stage 1: Incoming */}
+                    {orderStatus === "incoming" && (
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 transition-all">
+                          <div className="flex items-center gap-4 pb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                              <img
+                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                                alt="User"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-base font-extrabold text-dark tracking-tight">
+                                Firaz Hafiz
+                              </p>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                                Customer • 0.8 km
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4 ">
+                            <div className="flex items-start gap-3">
+                              <MapPin
+                                size={20}
+                                className="text-primary mt-0.5"
+                              />
+                              <p className="text-sm font-medium text-slate-600 leading-relaxed">
+                                Jl. Kebon Sirih No. 45, Surabaya
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mt-auto">
+                          <button
+                            onClick={() => setOrderStatus("none")}
+                            className="py-4 rounded-full  border border-red-400 text-red-400  font-bold text-sm  tracking-wide"
+                          >
+                            Lewati
+                          </button>
+                          <button
+                            onClick={() => setOrderStatus("to_customer")}
+                            className="py-4 rounded-full bg-primary text-white font-bold text-sm  tracking-wide "
+                          >
+                            Terima
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stage 2: To Customer (Maps View) */}
+                    {orderStatus === "to_customer" && (
+                      <div className="space-y-4 flex-1 flex flex-col">
+                        <div className="relative flex-1 bg-gray-100 rounded-2xl overflow-hidden min-h-[200px]">
+                          <img
+                            src="https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?q=80&w=1000&auto=format&fit=crop"
+                            alt="Map"
+                            className="w-full h-full object-cover opacity-60 grayscale"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent" />
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                            <div className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full shadow-xl animate-bounce">
+                              <Navigation size={14} className="fill-white" />
+                              <span className="text-xs font-black uppercase tracking-widest">
+                                Navigasi Aktif
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setOrderStatus("weighing")}
+                          className="w-full py-5 rounded-full bg-primary text-white font-bold text-sm"
+                        >
+                          Sampai Lokasi
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Stage 3: Weighing CTA */}
+                    {orderStatus === "weighing" && (
+                      <div className="space-y-4 flex-1 flex flex-col items-center justify-center py-6">
+                        <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
+                          <Zap
+                            size={32}
+                            className="text-secondary animate-pulse"
+                          />
+                        </div>
+                        <div className="text-center mb-8 px-4">
+                          <h4 className="text-lg font-black text-dark mb-2">
+                            Waktunya Menimbang!
+                          </h4>
+                          <p className="text-xs text-gray-400 leading-relaxed">
+                            Silahkan mulai proses penimbangan sampah untuk
+                            menghitung total poin dan insentif.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setOrderStatus("to_warehouse")}
+                          className="w-full py-5 rounded-full bg-primary-light text-dark font-bold text-sm"
+                        >
+                          Mulai Proses Timbang
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Stage 4: To Warehouse (Maps View) */}
+                    {orderStatus === "to_warehouse" && (
+                      <div className="space-y-4 flex-1 flex flex-col">
+                        <div className="relative flex-1 bg-gray-100 rounded-2xl overflow-hidden min-h-[200px]">
+                          <img
+                            src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=1000&auto=format&fit=crop"
+                            alt="Warehouse Map"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-dark/20" />
+                        </div>
+                        <button
+                          onClick={() => setOrderStatus("validation")}
+                          className="w-full py-5 rounded-full bg-primary text-white font-bold text-sm"
+                        >
+                          Tiba di Gudang
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Stage 5: Validation (QR Code) */}
+                    {orderStatus === "validation" && (
+                      <div className="space-y-6 flex-1 flex flex-col items-center justify-center p-4">
+                        <div className="text-center space-y-1">
+                          <h4 className="text-base font-black text-dark">
+                            Validasi Order
+                          </h4>
+                          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                            #AK-55291
+                          </p>
+                        </div>
+
+                        <div className="bg-white  rounded-xl flex flex-col items-center gap-4">
+                          <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center relative overflow-hidden group">
+                            {/* Mock QR Code UI */}
+                            <div className="grid grid-cols-4 gap-2 w-32 h-32">
+                              {[...Array(16)].map((_, i) => (
+                                <div
+                                  key={i}
+                                  className={cn(
+                                    "rounded-sm",
+                                    i % 3 === 0 || i % 7 === 0
+                                      ? "bg-white"
+                                      : "bg-white/20",
+                                  )}
+                                />
+                              ))}
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-2xl">
+                                <Zap size={24} className="text-dark" />
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-dark/40 ">
+                            Scan by Admin
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Default: No Order */}
+                    {orderStatus === "none" && (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4">
+                        <div className="w-20 h-20 rounded-full bg-primary/5 flex items-center justify-center">
+                          <Zap size={32} className="text-primary/20" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-dark">
+                            Menunggu Order...
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-medium">
+                            GPS Anda terdeteksi di Surabaya
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                    <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
+                      <Zap size={24} className="text-gray-200" />
+                    </div>
+                    <p className="text-xs font-bold text-gray-400">
+                      Aktifkan status Online untuk mulai bertugas
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Col 2–3: Wallet + Stats + History + Tips */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Wallet — full width of the right area */}
+            <WalletCard
+              balance={walletBalance}
+              isLoading={isWalletLoading}
+              showOrderButton={false}
+              showWithdrawButton={true}
               onWithdraw={() => console.log("Withdraw")}
             />
-          </div>
-          <div className="grid grid-cols-1 gap-6">
-            <StatCard 
-              label="Order Selesai"
-              value="128"
-              icon={CheckCircle}
-              trend="+12"
-              iconClassName="bg-green-50 text-green-600"
-            />
-            <StatCard 
-              label="Rating Performa"
-              value="4.9 / 5.0"
-              icon={Star}
-              iconClassName="bg-yellow-50 text-yellow-600"
-            />
-          </div>
-        </div>
 
-        {/* Mission Center */}
-        <div className="bg-white rounded-4xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-primary/5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center">
-                <Navigation size={20} />
-              </div>
-              <h3 className="text-xl font-bold text-dark">Misi Aktif</h3>
-            </div>
-            <span className="text-xs font-bold bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-wider">Sedang Berjalan</span>
-          </div>
-          
-          <div className="p-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 rounded-2xl bg-gray-50 border border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm">
-                  <MapPin size={24} className="text-primary" />
+            {/* Bottom Sub-Grid: Stats+Tips | History */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left: Stats cards + Tips */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <StatCard
+                    label="Order Selesai"
+                    value="156"
+                    icon={CheckCircle2}
+                    trend="+12"
+                    iconClassName="bg-green-50 text-green-600"
+                  />
+                  <StatCard
+                    label="Total Pendapatan"
+                    value="Rp 2.4jt"
+                    icon={TrendingUp}
+                    trend="+15%"
+                    iconClassName="bg-primary/10 text-primary"
+                  />
                 </div>
-                <div>
-                  <p className="font-bold text-lg text-dark">Penjemputan Sampah Mutu</p>
-                  <p className="text-sm text-gray-500">Jl. Merdeka No. 123, Bandung</p>
-                  <div className="flex items-center gap-4 mt-3">
-                    <span className="text-xs font-bold text-dark px-2 py-1 bg-white rounded-md border border-gray-200">📦 Motor</span>
-                    <span className="text-xs font-bold text-dark px-2 py-1 bg-white rounded-md border border-gray-200">📍 1.2 km</span>
+
+                {/* Daily Tips */}
+                <div className="bg-dark rounded-xl p-6 md:pb-14 text-white relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
+                    <BookOpen size={60} />
+                  </div>
+                  <div className="flex flex-col">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-secondary mb-3 inline-block">
+                        Tips Hari Ini
+                      </span>
+                      <h4 className="text-lg font-bold mb-2">
+                        Meningkatkan Kecepatan Angkut
+                      </h4>
+                      <p className="text-xs text-gray-400 leading-relaxed mb-6">
+                        Gunakan jalur alternatif saat jam sibuk di area Surabaya
+                        Pusat untuk efisiensi waktu.
+                      </p>
+                    </div>
+                    <button className="flex items-center gap-2 text-xs font-black text-secondary uppercase tracking-widest">
+                      Baca Selengkapnya <ArrowRight size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3">
-                 <button className="flex-1 md:flex-none px-6 py-3 rounded-xl bg-white border border-gray-200 text-dark font-bold hover:bg-gray-100 transition-colors">Detail</button>
-                 <button className="flex-1 md:flex-none px-6 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all">Navigasi</button>
+
+              {/* Right: History */}
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm flex flex-col">
+                <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HistoryIcon size={18} className="text-dark" />
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                      Riwayat Terakhir
+                    </h3>
+                  </div>
+                  <button className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                    Detail
+                  </button>
+                </div>
+                <div className="divide-y divide-gray-50 overflow-y-auto max-h-[360px]">
+                  {[1, 2, 3, 4, 5].map((_, i) => (
+                    <div
+                      key={i}
+                      className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-black text-dark">
+                          Order #TRX-{1024 + i}
+                        </span>
+                        <span className="text-[10px] font-bold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">
+                          Selesai
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                        <Clock size={12} />
+                        <span>06 Mei 2026, 08:{10 + i}</span>
+                        <span className="mx-1">•</span>
+                        <span className="text-dark font-bold">
+                          Rp {15000 + i * 2500}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

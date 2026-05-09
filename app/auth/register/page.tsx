@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoadingCheck, setIsLoadingCheck] = useState(true);
@@ -175,20 +177,7 @@ export default function RegisterPage() {
             </span>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full cursor-pointer flex items-center gap-2 py-6"
-            type="button"
-          >
-            <Image
-              src="/icons/google.svg"
-              alt="Google"
-              width={18}
-              height={18}
-              className="mr-1"
-            />
-            Google
-          </Button>
+          <GoogleAuthButton mode="register" />
 
           <p className="text-center text-sm text-gray-500 mt-8">
             Already have an account?{" "}

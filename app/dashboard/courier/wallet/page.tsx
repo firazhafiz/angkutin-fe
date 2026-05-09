@@ -65,7 +65,7 @@ const PROVIDERS = {
   ],
 };
 
-export default function UserWalletPage() {
+export default function CourierWalletPage() {
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
     queryKey: ["walletBalance"],
     queryFn: walletService.getBalance,
@@ -79,18 +79,18 @@ export default function UserWalletPage() {
       id: "1",
       type: "bank",
       provider: "Bank Central Asia",
-      accountName: "Budi Santoso",
+      accountName: "Hafiz",
       accountNumber: "882100921",
       color: "bg-blue-50 text-blue-600",
       isPrimary: true,
     },
     {
       id: "2",
-      type: "bank",
-      provider: "Bank Mandiri",
-      accountName: "Budi Santoso",
-      accountNumber: "441299012",
-      color: "bg-yellow-50 text-yellow-600",
+      type: "ewallet",
+      provider: "GoPay",
+      accountName: "Hafiz",
+      accountNumber: "081234567890",
+      color: "bg-cyan-50 text-cyan-600",
       isPrimary: false,
     },
   ]);
@@ -162,8 +162,8 @@ export default function UserWalletPage() {
     {
       id: "TX-9921",
       type: "Income",
-      title: "Hasil Angkut Sampah",
-      category: "Anorganik",
+      title: "Komisi Penjemputan Sampah",
+      category: "Angkutin",
       date: "24 April 2024",
       amount: "+ Rp 25.000",
       points: "+ 125 pts",
@@ -172,37 +172,37 @@ export default function UserWalletPage() {
     {
       id: "TX-9920",
       type: "Expense",
-      title: "Tarik Saldo",
+      title: "Tarik Saldo Komisi",
       category: "Bank Transfer",
       date: "21 April 2024",
-      amount: "- Rp 50.000",
+      amount: "- Rp 150.000",
       points: null,
       status: "Berhasil",
     },
     {
       id: "TX-9919",
       type: "Income",
-      title: "Bonus Referal",
+      title: "Bonus Performa Tepat Waktu",
       category: "Reward",
       date: "18 April 2024",
-      amount: "+ Rp 10.000",
+      amount: "+ Rp 50.000",
       points: "+ 50 pts",
       status: "Berhasil",
     },
     {
       id: "TX-9918",
       type: "Expense",
-      title: "Pembelian Voucher",
-      category: "Marketplace",
+      title: "Tarik Saldo Komisi",
+      category: "E-Wallet",
       date: "15 April 2024",
-      amount: "- Rp 15.000",
+      amount: "- Rp 100.000",
       points: null,
       status: "Berhasil",
     },
   ];
 
   return (
-    <DashboardLayout role="user">
+    <DashboardLayout role="courier">
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 pb-10">
         <div className="order-1 lg:col-span-4 lg:col-start-9 lg:row-start-1 space-y-6">
           <div className="bg-dark p-8 rounded-2xl text-white relative overflow-hidden group">
@@ -214,7 +214,7 @@ export default function UserWalletPage() {
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-1.5">
-                    Saldo Anda
+                    Saldo Komisi
                   </p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-xl font-bold text-white/40">Rp</span>
@@ -229,7 +229,7 @@ export default function UserWalletPage() {
                 </div>
                 <div className="bg-white/5 backdrop-blur-xl  py-1.5 px-2 rounded-md text-xs font-black flex flex-col items-center gap-0.5 border border-white/10 shadow-lg">
                   <span className="text-primary text-sm tracking-tight">
-                    +2.8k
+                    +4.2k
                   </span>
                   <span className="text-white/20 tracking-[0.2em] text-[7px]">
                     POINTS
@@ -238,7 +238,7 @@ export default function UserWalletPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-                <button className="py-4 bg-primary-light rounded-full text-xs text-dark font-black uppercase tracking-widest transition-all border border-white/5">
+                <button className="py-4 bg-primary-light rounded-full text-xs text-dark font-black uppercase tracking-widest transition-all border border-white/5 cursor-pointer">
                   Tarik Saldo
                 </button>
               </div>
@@ -250,14 +250,14 @@ export default function UserWalletPage() {
           <div className="grid grid-cols-2 gap-4">
             {[
               {
-                label: "Total Pendapatan",
-                value: "1.250.000",
+                label: "Total Komisi",
+                value: "2.400.000",
                 icon: TrendingUp,
                 color: "bg-green-50 text-green-600",
               },
               {
-                label: "Total Pengeluaran",
-                value: "850.000",
+                label: "Total Ditarik",
+                value: "1.850.000",
                 icon: ArrowDownLeft,
                 color: "bg-red-50 text-red-600",
               },

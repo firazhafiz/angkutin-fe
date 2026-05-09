@@ -2,10 +2,11 @@ import axios from "axios";
 
 // Instance axios untuk komunikasi ke Backend
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://angkutin-be.vercel.app/api",
+  baseURL:
+    process.env.NEXT_PUBLIC_API_URL || "https://angkutin-be.vercel.app/api",
   headers: {
     "Content-Type": "application/json",
-    "Accept": "application/json",
+    Accept: "application/json",
     "ngrok-skip-browser-warning": "69420", // Header sakti buat bypass warning ngrok
   },
 });
@@ -13,7 +14,8 @@ const api = axios.create({
 // Interceptor untuk menyisipkan token JWT secara otomatis
 api.interceptors.request.use(
   (config) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -21,7 +23,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Interceptor untuk menangani error global (misal: token expired)
@@ -31,23 +33,32 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Jika error 401 (Unauthorized) dan bukan request refresh token itu sendiri
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Serta jangan lakukan refresh jika request ke endpoint auth (login/register)
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/auth/")
+    ) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem("refresh_token");
-        
+
         if (!refreshToken) {
           throw new Error("No refresh token available");
         }
 
         // Panggil endpoint refresh token
         // Sesuaikan endpoint ini dengan BE (biasanya /auth/refresh atau /auth/refresh-token)
-        const response = await axios.post("https://angkutin-be.vercel.app/api/auth/refresh", {
-          refresh_token: refreshToken
-        });
+        const response = await axios.post(
+          "https://angkutin-be.vercel.app/api/auth/refresh",
+          {
+            refresh_token: refreshToken,
+          },
+        );
 
-        const { access_token, refresh_token: newRefreshToken } = response.data.data;
+        const { access_token, refresh_token: newRefreshToken } =
+          response.data.data;
 
         // Simpan token baru
         localStorage.setItem("token", access_token);
@@ -63,8 +74,11 @@ api.interceptors.response.use(
         localStorage.removeItem("token");
         localStorage.removeItem("refresh_token");
         localStorage.removeItem("user");
-        
-        if (typeof window !== "undefined" && !window.location.pathname.includes("/auth")) {
+
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.includes("/auth")
+        ) {
           window.location.href = "/auth/login";
         }
         return Promise.reject(refreshError);
@@ -72,7 +86,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

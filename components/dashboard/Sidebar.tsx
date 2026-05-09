@@ -43,7 +43,7 @@ export default function Sidebar({ role }: SidebarProps) {
       : [
           { label: "Dashboard Shift", icon: Home, href: "/dashboard/courier" },
           {
-            label: "Daftar Misi",
+            label: "Daftar Order",
             icon: ClipboardList,
             href: "/dashboard/courier/missions",
           },
@@ -96,7 +96,7 @@ export default function Sidebar({ role }: SidebarProps) {
       </nav>
 
       <div className="mt-auto pt-6 border-t border-gray-50">
-        <button 
+        <button
           onClick={() => setShowLogoutModal(true)}
           className="flex text-sm items-center gap-4 px-4 py-3.5 w-full rounded-xl text-red-500 hover:bg-red-50 transition-colors font-semibold cursor-pointer"
         >
@@ -105,7 +105,7 @@ export default function Sidebar({ role }: SidebarProps) {
         </button>
       </div>
 
-      <LogoutModal 
+      <LogoutModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogout}

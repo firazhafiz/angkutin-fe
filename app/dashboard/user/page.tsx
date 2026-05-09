@@ -127,7 +127,7 @@ export default function UserDashboard() {
                   Detail
                 </button>
                 <button className="flex-1 px-3 py-2.5 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all active:scale-95 shadow-sm">
-                  Lacak Real-time
+                  Lacak Kurir
                 </button>
               </div>
             </div>

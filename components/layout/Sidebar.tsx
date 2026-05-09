@@ -75,7 +75,6 @@ export default function Sidebar({
     if (mobileOpen && onMobileClose) {
       onMobileClose();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   return (
@@ -94,13 +93,11 @@ export default function Sidebar({
           'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-gray-100 dark:border-gray-800',
           'bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out',
           collapsed ? 'md:w-[72px]' : 'md:w-[260px]',
-          // Mobile: hidden by default, shown when mobileOpen
           mobileOpen
             ? 'w-[260px] translate-x-0'
             : '-translate-x-full md:translate-x-0'
         )}
       >
-        {/* ───── Logo Area ───── */}
         <div className="flex h-16 items-center justify-between border-b border-gray-100 dark:border-gray-800 px-4">
           <div className="flex items-center gap-3">
             {!collapsed && (

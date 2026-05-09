@@ -9,6 +9,7 @@ interface WalletCardProps {
   onOrder?: () => void;
   onWithdraw?: () => void;
   showOrderButton?: boolean;
+  showWithdrawButton?: boolean;
   isLoading?: boolean;
 }
 
@@ -17,6 +18,7 @@ export default function WalletCard({
   onOrder,
   onWithdraw,
   showOrderButton = true,
+  showWithdrawButton = false,
   isLoading = false,
 }: WalletCardProps) {
   const formattedBalance = new Intl.NumberFormat("id-ID", {
@@ -26,7 +28,7 @@ export default function WalletCard({
   }).format(balance);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-dark p-8 text-white">
+    <div className="relative overflow-hidden rounded-2xl bg-dark p-8 text-white ">
       {/* Decorative Background Elements */}
       <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
       <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-secondary/10 blur-3xl" />
@@ -41,12 +43,14 @@ export default function WalletCard({
               Saldo Wallet
             </span>
           </div>
-          <button
-            onClick={onWithdraw}
-            className="flex items-center gap-1.5 text-xs font-bold text-secondary hover:text-white transition-colors"
-          >
-            Tarik Saldo <ArrowUpRight size={14} />
-          </button>
+          {!showWithdrawButton && onWithdraw && (
+            <button
+              onClick={onWithdraw}
+              className="flex items-center gap-1.5 text-xs font-bold text-secondary hover:text-white transition-colors"
+            >
+              Tarik Saldo <ArrowUpRight size={14} />
+            </button>
+          )}
         </div>
 
         <div>
@@ -62,16 +66,29 @@ export default function WalletCard({
           </p>
         </div>
 
-        {showOrderButton && (
-          <Button
-            onClick={onOrder}
-            variant="secondary"
-            size="lg"
-            className="w-full py-7 text-sm md:text-base font-bold cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
-          >
-            Mulai Angkut Sekarang
-          </Button>
-        )}
+        <div className="flex flex-col gap-3">
+          {showOrderButton && (
+            <Button
+              onClick={onOrder}
+              variant="secondary"
+              size="lg"
+              className="w-full py-7 text-sm md:text-base font-bold cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
+            >
+              Mulai Angkut Sekarang
+            </Button>
+          )}
+
+          {showWithdrawButton && (
+            <Button
+              onClick={onWithdraw}
+              variant="secondary"
+              size="lg"
+              className="w-full py-7 text-sm md:text-base font-bold cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
+            >
+              Tarik Saldo Sekarang
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
