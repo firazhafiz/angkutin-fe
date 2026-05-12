@@ -45,6 +45,48 @@ export default function UserDashboard() {
           </div>
         </div>
 
+        {/* Mobile Only: Active Order Card (above stats) */}
+        <div className="md:hidden">
+          <div className="bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm">
+            <div className="p-3 border-b border-primary/10 flex items-center justify-between bg-primary/10">
+              <div className="flex items-center gap-2 text-primary">
+                <Navigation size={14} className="animate-pulse" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest">
+                  Pesanan Berjalan
+                </h3>
+              </div>
+              <span className="text-[9px] font-bold bg-white text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                Menuju Lokasi
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full border-2 border-white overflow-hidden shrink-0">
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Asep"
+                    alt="Courier"
+                    className="w-full h-full object-cover bg-primary/10"
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-dark leading-none">
+                    Asep Sunandar
+                  </p>
+                  <p className="text-[10px] font-bold text-primary mt-1 uppercase tracking-wider">
+                    AGT-99212 • Motor
+                  </p>
+                </div>
+                <button
+                  onClick={() => window.location.href = "/dashboard/user/order/tracking/mock-order-123"}
+                  className="px-4 py-2 rounded-full bg-primary text-white text-[10px] font-black hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
+                >
+                  Lacak
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Top Section: Wallet & Stats Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
@@ -77,8 +119,8 @@ export default function UserDashboard() {
 
         {/* Bottom Section: High-Density 3-Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-          {/* Column 1: Pesanan Berjalan with Map Preview */}
-          <div className="bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm flex flex-col">
+          {/* Column 1: Pesanan Berjalan with Map Preview (Desktop only — mobile version is above) */}
+          <div className="hidden md:flex bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm flex-col">
             <div className="p-4 border-b border-primary/10 flex items-center justify-between bg-primary/10 shrink-0">
               <div className="flex items-center gap-2 text-primary">
                 <Navigation size={16} className="animate-pulse" />

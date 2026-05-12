@@ -10,8 +10,7 @@ export const ORDER_ACCEPT_TIMEOUT = 30;
 export const VEHICLE_OPTIONS = [
   { type: VehicleType.MOTOR, label: "Motor", maxVolume: 50, icon: "bike" },
   { type: VehicleType.PICKUP, label: "Pickup", maxVolume: 500, icon: "truck" },
-  { type: VehicleType.TRUCK_SMALL, label: "Truk Kecil", maxVolume: 2000, icon: "truck" },
-  { type: VehicleType.TRUCK_LARGE, label: "Truk Besar", maxVolume: 5000, icon: "truck" },
+  { type: VehicleType.TRUCK, label: "Truk", maxVolume: 2000, icon: "truck" },
 ];
 
 // Address tag options
@@ -20,6 +19,6 @@ export const ADDRESS_TAGS = ["Rumah", "Kos", "Kantor", "Lainnya"];
 // Withdrawal provider options
 export const WITHDRAWAL_PROVIDERS = ["DANA", "ShopeePay", "GoPay", "OVO", "Bank Transfer"];
 
-// Map default center (Jakarta)
-export const MAP_DEFAULT_CENTER = { lat: -6.2088, lng: 106.8456 };
+// Map default center (Surabaya)
+export const MAP_DEFAULT_CENTER = { lat: -7.2575, lng: 112.7521 };
 export const MAP_DEFAULT_ZOOM = 13;

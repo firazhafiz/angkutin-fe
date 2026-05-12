@@ -3,6 +3,7 @@
 import React from "react";
 import { Wallet, ArrowUpRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import Link from "next/link";
 
 interface WalletCardProps {
   balance: number;
@@ -68,14 +69,16 @@ export default function WalletCard({
 
         <div className="flex flex-col gap-3">
           {showOrderButton && (
-            <Button
-              onClick={onOrder}
-              variant="secondary"
-              size="lg"
-              className="w-full py-7 text-sm md:text-base font-bold cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
-            >
-              Mulai Angkut Sekarang
-            </Button>
+            <Link href="/dashboard/user/order">
+              <Button
+                onClick={onOrder}
+                variant="secondary"
+                size="lg"
+                className="w-full py-7 text-sm md:text-base font-bold cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
+              >
+                Mulai Angkut Sekarang
+              </Button>
+            </Link>
           )}
 
           {showWithdrawButton && (

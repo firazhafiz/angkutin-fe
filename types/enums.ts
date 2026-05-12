@@ -5,22 +5,27 @@ export enum UserRole {
 }
 
 export enum OrderStatus {
-  PENDING = "pending",
-  ACCEPTED = "accepted",
-  IN_PROGRESS = "in_progress",
-  TRIAGE = "triage",
-  WAITING_PAYMENT = "waiting_payment",
-  PAID = "paid",
-  DELIVERING = "delivering",
-  COMPLETED = "completed",
-  CANCELLED = "cancelled",
+  CREATED = "CREATED",
+  MATCHED = "MATCHED",
+  ON_GOING = "ON_GOING",
+  ARRIVED = "ARRIVED",
+  WEIGHING = "WEIGHING",
+  WAITING_PAYMENT = "WAITING_PAYMENT",
+  PICKED_UP = "PICKED_UP",
+  DELIVERING = "DELIVERING",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
 }
 
 export enum VehicleType {
-  MOTOR = "motor",
-  PICKUP = "pickup",
-  TRUCK_SMALL = "truck_small",
-  TRUCK_LARGE = "truck_large",
+  MOTOR = "MOTOR",
+  PICKUP = "PICKUP",
+  TRUCK = "TRUCK",
+}
+
+export enum ScheduleType {
+  INSTANT = "INSTANT",
+  SCHEDULED = "SCHEDULED",
 }
 
 export enum PaymentMethod {
@@ -42,7 +47,6 @@ export enum TransactionType {
 }
 
 export enum CancellationReason {
-  VEHICLE_CAPACITY = "vehicle_capacity", // Auto re-assign
   FAKE_ORDER = "fake_order", // Pure cancel
   WRONG_ADDRESS = "wrong_address", // Pure cancel
   USER_REQUEST = "user_request",

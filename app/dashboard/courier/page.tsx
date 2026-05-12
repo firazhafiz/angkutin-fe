@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
+import IncomingAlert from "@/components/courier/IncomingAlert";
+import MissionCard from "@/components/courier/MissionCard";
 import { useQuery } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
 import {
@@ -20,18 +22,12 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { OrderStatus } from "@/types/enums";
 
 export default function CourierDashboard() {
   const [isOnline, setIsOnline] = useState(false);
-  // Order stages: 'none', 'incoming', 'to_customer', 'weighing', 'to_warehouse', 'validation'
-  const [orderStatus, setOrderStatus] = useState<
-    | "none"
-    | "incoming"
-    | "to_customer"
-    | "weighing"
-    | "to_warehouse"
-    | "validation"
-  >("incoming");
+  const [showIncoming, setShowIncoming] = useState(false);
+  const [hasActiveOrder, setHasActiveOrder] = useState(true);
 
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
     queryKey: ["walletBalance"],
@@ -42,6 +38,23 @@ export default function CourierDashboard() {
 
   return (
     <DashboardLayout role="courier">
+      {/* IncomingAlert Overlay */}
+      {showIncoming && (
+        <IncomingAlert
+          customerName="Firaz Hafiz"
+          address="Jl. Kebon Sirih No. 45, Surabaya"
+          distance="0.8 km"
+          estimatedEarning="+ Rp 15.000"
+          vehicleType="Motor"
+          onAccept={() => {
+            setShowIncoming(false);
+            setHasActiveOrder(true);
+            window.location.href = "/dashboard/courier/missions/mock-order-123";
+          }}
+          onReject={() => setShowIncoming(false)}
+        />
+      )}
+
       <div className="space-y-6">
         {/* Header Section: Welcome & Online Toggle */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -94,42 +107,51 @@ export default function CourierDashboard() {
           </div>
         </div>
 
+        {/* Mobile: Active Order Card (above everything) */}
+        {hasActiveOrder && (
+          <div className="md:hidden">
+            <MissionCard
+              orderId="#AGT-55291"
+              customerName="Firaz Hafiz"
+              address="Jl. Kebon Sirih No. 45, Surabaya"
+              status={OrderStatus.ON_GOING}
+              distance="0.8 km"
+              onClick={() =>
+                (window.location.href =
+                  "/dashboard/courier/missions/mock-order-123")
+              }
+            />
+          </div>
+        )}
+
         {/* Main Dashboard Grid — 1 col mobile, 3 col desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Col 1: Order Status Card — first on mobile, col-1 on desktop */}
-          <div className="order-first lg:order-none lg:col-span-1">
+          {/* Col 1: Order Status Card — desktop only full card */}
+          <div className="hidden md:block lg:col-span-1">
             <div className="bg-white rounded-2xl overflow-hidden border border-primary/40 flex flex-col ">
               <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-primary/5 shrink-0">
                 <div className="flex items-center gap-2 text-primary">
                   <Navigation
                     size={18}
-                    className={cn(orderStatus !== "none" && "animate-pulse")}
+                    className={cn(hasActiveOrder && "animate-pulse")}
                   />
                   <h3 className="text-sm font-bold  tracking-wide">
-                    {orderStatus === "incoming"
-                      ? "Order Masuk!"
-                      : "Status Order Aktif"}
+                    {hasActiveOrder ? "Order Aktif" : "Status Order"}
                   </h3>
                 </div>
-                <span
-                  className={cn(
-                    "text-[10px] font-bold px-2 py-1 rounded-full border",
-                    orderStatus === "incoming"
-                      ? "bg-secondary text-dark border-secondary/20"
-                      : "bg-white text-primary border-primary/20",
-                  )}
-                >
-                  {orderStatus === "incoming" ? "Baru" : "Sedang Berjalan"}
-                </span>
+                {hasActiveOrder && (
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full border bg-white text-primary border-primary/20">
+                    Sedang Berjalan
+                  </span>
+                )}
               </div>
 
               <div className="p-5 flex-1 flex flex-col">
                 {isOnline ? (
                   <>
-                    {/* Stage 1: Incoming */}
-                    {orderStatus === "incoming" && (
+                    {hasActiveOrder ? (
                       <div className="space-y-4">
-                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 transition-all">
+                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                           <div className="flex items-center gap-4 pb-4">
                             <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center shrink-0 overflow-hidden">
                               <img
@@ -161,141 +183,30 @@ export default function CourierDashboard() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mt-auto">
-                          <button
-                            onClick={() => setOrderStatus("none")}
-                            className="py-4 rounded-full  border border-red-400 text-red-400  font-bold text-sm  tracking-wide"
-                          >
-                            Lewati
-                          </button>
-                          <button
-                            onClick={() => setOrderStatus("to_customer")}
-                            className="py-4 rounded-full bg-primary text-white font-bold text-sm  tracking-wide "
-                          >
-                            Terima
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Stage 2: To Customer (Maps View) */}
-                    {orderStatus === "to_customer" && (
-                      <div className="space-y-4 flex-1 flex flex-col">
-                        <div className="relative flex-1 bg-gray-100 rounded-2xl overflow-hidden min-h-[200px]">
-                          <img
-                            src="https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?q=80&w=1000&auto=format&fit=crop"
-                            alt="Map"
-                            className="w-full h-full object-cover opacity-60 grayscale"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent" />
-                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                            <div className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full shadow-xl animate-bounce">
-                              <Navigation size={14} className="fill-white" />
-                              <span className="text-xs font-black uppercase tracking-widest">
-                                Navigasi Aktif
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setOrderStatus("weighing")}
-                          className="w-full py-5 rounded-full bg-primary text-white font-bold text-sm"
-                        >
-                          Sampai Lokasi
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Stage 3: Weighing CTA */}
-                    {orderStatus === "weighing" && (
-                      <div className="space-y-4 flex-1 flex flex-col items-center justify-center py-6">
-                        <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
-                          <Zap
-                            size={32}
-                            className="text-secondary animate-pulse"
-                          />
-                        </div>
-                        <div className="text-center mb-8 px-4">
-                          <h4 className="text-lg font-black text-dark mb-2">
-                            Waktunya Menimbang!
-                          </h4>
-                          <p className="text-xs text-gray-400 leading-relaxed">
-                            Silahkan mulai proses penimbangan sampah untuk
-                            menghitung total poin dan insentif.
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setOrderStatus("to_warehouse")}
-                          className="w-full py-5 rounded-full bg-primary-light text-dark font-bold text-sm"
-                        >
-                          Mulai Proses Timbang
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Stage 4: To Warehouse (Maps View) */}
-                    {orderStatus === "to_warehouse" && (
-                      <div className="space-y-4 flex-1 flex flex-col">
-                        <div className="relative flex-1 bg-gray-100 rounded-2xl overflow-hidden min-h-[200px]">
-                          <img
-                            src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=1000&auto=format&fit=crop"
-                            alt="Warehouse Map"
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-dark/20" />
-                        </div>
-                        <button
-                          onClick={() => setOrderStatus("validation")}
-                          className="w-full py-5 rounded-full bg-primary text-white font-bold text-sm"
-                        >
-                          Tiba di Gudang
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Stage 5: Validation (QR Code) */}
-                    {orderStatus === "validation" && (
-                      <div className="space-y-6 flex-1 flex flex-col items-center justify-center p-4">
-                        <div className="text-center space-y-1">
-                          <h4 className="text-base font-black text-dark">
-                            Validasi Order
-                          </h4>
-                          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
-                            #AK-55291
-                          </p>
-                        </div>
-
-                        <div className="bg-white  rounded-xl flex flex-col items-center gap-4">
-                          <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center relative overflow-hidden group">
-                            {/* Mock QR Code UI */}
-                            <div className="grid grid-cols-4 gap-2 w-32 h-32">
-                              {[...Array(16)].map((_, i) => (
-                                <div
-                                  key={i}
-                                  className={cn(
-                                    "rounded-sm",
-                                    i % 3 === 0 || i % 7 === 0
-                                      ? "bg-white"
-                                      : "bg-white/20",
-                                  )}
-                                />
-                              ))}
-                            </div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-2xl">
-                                <Zap size={24} className="text-dark" />
+                        {/* Map preview */}
+                        <div className="relative h-48 w-full rounded-xl overflow-hidden border border-primary/10 bg-gray-200 shadow-inner">
+                          <div className="absolute inset-0 bg-gray-100">
+                            <div className="absolute inset-0 bg-linear-to-t from-primary/20 to-transparent" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center animate-ping absolute" />
+                              <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center relative shadow-lg border-2 border-white">
+                                <MapPin size={14} />
                               </div>
                             </div>
                           </div>
-                          <p className="text-sm font-bold text-dark/40 ">
-                            Scan by Admin
-                          </p>
                         </div>
-                      </div>
-                    )}
 
-                    {/* Default: No Order */}
-                    {orderStatus === "none" && (
+                        <button
+                          onClick={() =>
+                            (window.location.href =
+                              "/dashboard/courier/missions/mock-order-123")
+                          }
+                          className="w-full py-4 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all active:scale-95"
+                        >
+                          Buka Detail Misi
+                        </button>
+                      </div>
+                    ) : (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4">
                         <div className="w-20 h-20 rounded-full bg-primary/5 flex items-center justify-center">
                           <Zap size={32} className="text-primary/20" />
@@ -308,6 +219,12 @@ export default function CourierDashboard() {
                             GPS Anda terdeteksi di Surabaya
                           </p>
                         </div>
+                        <button
+                          onClick={() => setShowIncoming(true)}
+                          className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors cursor-pointer"
+                        >
+                          Demo: Simulasi Order Masuk
+                        </button>
                       </div>
                     )}
                   </>
@@ -324,6 +241,40 @@ export default function CourierDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Mobile: Waiting / Offline state (when no active order on mobile) */}
+          {!hasActiveOrder && (
+            <div className="md:hidden bg-white rounded-2xl border border-gray-100 p-6 text-center space-y-3">
+              {isOnline ? (
+                <>
+                  <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center mx-auto">
+                    <Zap size={24} className="text-primary/30" />
+                  </div>
+                  <p className="text-sm font-black text-dark">
+                    Menunggu Order...
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    GPS Anda terdeteksi di Surabaya
+                  </p>
+                  <button
+                    onClick={() => setShowIncoming(true)}
+                    className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors cursor-pointer"
+                  >
+                    Demo: Simulasi Order Masuk
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mx-auto">
+                    <Zap size={24} className="text-gray-200" />
+                  </div>
+                  <p className="text-xs font-bold text-gray-400">
+                    Aktifkan status Online untuk mulai bertugas
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Col 2–3: Wallet + Stats + History + Tips */}
           <div className="lg:col-span-2 space-y-6">

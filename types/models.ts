@@ -2,6 +2,7 @@ import {
   UserRole,
   OrderStatus,
   VehicleType,
+  ScheduleType,
   PaymentMethod,
   WasteCategory,
   TransactionType,
@@ -24,9 +25,11 @@ export interface Address {
   id: string;
   userId: string;
   label: string; // "Rumah", "Kos", "Kantor"
-  fullAddress: string;
-  lat: number;
-  lng: number;
+  district?: string;
+  village?: string;
+  addressDetail: string;
+  lat?: number;
+  lng?: number;
   isPrimary: boolean;
 }
 
@@ -38,12 +41,28 @@ export interface Order {
   addressId: string;
   address?: Address;
   status: OrderStatus;
+  scheduleType: ScheduleType;
   scheduledAt?: string; // null = instant
   notes?: string;
   estimatedVolume?: number; // from AR scan (liters)
   recommendedVehicle?: VehicleType;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrderOffer {
+  id: string;
+  orderId: string;
+  courierId: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "EXPIRED";
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface CourierMatch {
+  courier: CourierProfile;
+  distanceKm: number;
+  etaMinutes: number;
 }
 
 // ==================== TRIAGE / WEIGHING ====================
@@ -65,6 +84,12 @@ export interface TriageResult {
   totalMutuValue: number; // credit
   totalResiduCost: number; // debit
   netBalance: number; // mutu - residu (positive = user earns)
+}
+
+export interface WeighingSimulation {
+  orderId: string;
+  mutuKg: number;
+  residuKg: number;
 }
 
 // ==================== PAYMENT ====================
@@ -100,7 +125,6 @@ export interface CourierProfile extends User {
   vehicleType: VehicleType;
   vehiclePlate: string;
   isOnline: boolean;
-  rating: number;
   totalDeliveries: number;
 }
 
