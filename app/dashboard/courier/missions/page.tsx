@@ -100,7 +100,7 @@ export default function CourierHistoryPage() {
               <input
                 type="text"
                 placeholder="Cari ID Pesanan..."
-                className="pl-10 pr-9 py-2.5 text-dark bg-white border border-gray-100 rounded-md text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full md:w-64 shadow-sm"
+                className="pl-10 pr-9 py-2.5 text-dark bg-white rounded-md text-xs md:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all w-full md:w-64 shadow-sm"
               />
             </div>
           </div>

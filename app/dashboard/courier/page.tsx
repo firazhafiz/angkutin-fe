@@ -6,8 +6,9 @@ import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
 import IncomingAlert from "@/components/courier/IncomingAlert";
 import MissionCard from "@/components/courier/MissionCard";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
+import { courierService } from "@/services/courier.service";
 import {
   CheckCircle2,
   TrendingUp,
@@ -20,14 +21,36 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { OrderStatus } from "@/types/enums";
 
 export default function CourierDashboard() {
-  const [isOnline, setIsOnline] = useState(false);
+  const queryClient = useQueryClient();
   const [showIncoming, setShowIncoming] = useState(false);
   const [hasActiveOrder, setHasActiveOrder] = useState(true);
+
+  // Fetch Courier Profile
+  const { data: courierProfileData, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["courierProfile"],
+    queryFn: courierService.getProfile,
+  });
+
+  const courierProfile = courierProfileData?.data;
+  const isOnline = courierProfile?.isOnline ?? false;
+
+  // Mutate Online Status
+  const statusMutation = useMutation({
+    mutationFn: (newStatus: boolean) => courierService.updateStatus(newStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courierProfile"] });
+    },
+  });
+
+  const handleToggleStatus = () => {
+    statusMutation.mutate(!isOnline);
+  };
 
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
     queryKey: ["walletBalance"],
@@ -83,10 +106,12 @@ export default function CourierDashboard() {
             </div>
 
             <button
-              onClick={() => setIsOnline(!isOnline)}
+              disabled={statusMutation.isPending || isProfileLoading}
+              onClick={handleToggleStatus}
               className={cn(
-                "relative inline-flex h-11 w-20 items-center rounded-full transition-all duration-300 focus:outline-none  shadow-inner shrink-0",
+                "relative inline-flex h-11 w-20 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner shrink-0",
                 isOnline ? "bg-primary" : "bg-gray-300",
+                (statusMutation.isPending || isProfileLoading) && "opacity-50 cursor-not-allowed"
               )}
             >
               <div
@@ -95,13 +120,20 @@ export default function CourierDashboard() {
                   isOnline ? "translate-x-10" : "translate-x-1",
                 )}
               >
-                <Zap
-                  size={14}
-                  className={cn(
-                    "transition-colors",
-                    isOnline ? "text-primary fill-primary" : "text-gray-300",
-                  )}
-                />
+                {statusMutation.isPending || isProfileLoading ? (
+                  <Loader2
+                    size={14}
+                    className="animate-spin text-gray-400"
+                  />
+                ) : (
+                  <Zap
+                    size={14}
+                    className={cn(
+                      "transition-colors",
+                      isOnline ? "text-primary fill-primary" : "text-gray-300",
+                    )}
+                  />
+                )}
               </div>
             </button>
           </div>
@@ -287,7 +319,7 @@ export default function CourierDashboard() {
               onWithdraw={() => console.log("Withdraw")}
             />
 
-            {/* Bottom Sub-Grid: Stats+Tips | History */}
+            {/* Bottom Sub-Grid: Stats+Tips | Accounts | History */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left: Stats cards + Tips */}
               <div className="space-y-6">

@@ -115,7 +115,7 @@ export default function ProfileView() {
   if (active === "address")
     return <AddressSection onBack={() => setActive("overview")} />;
   if (active === "security")
-    return <SecuritySection onBack={() => setActive("overview")} />;
+    return <SecuritySection user={user} onBack={() => setActive("overview")} />;
   if (active === "notification")
     return <NotificationSection onBack={() => setActive("overview")} />;
 

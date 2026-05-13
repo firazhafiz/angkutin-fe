@@ -13,7 +13,7 @@ import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import { LoginRequest } from "@/types/auth";
 import { toast } from "sonner";
-
+import Cookies from "js-cookie";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 export default function LoginPage() {
@@ -22,9 +22,33 @@ export default function LoginPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      router.replace("/dashboard/user");
+    const userStr = localStorage.getItem("user");
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        
+        // Sync to cookies for proxy/middleware if missing
+        if (!Cookies.get("token")) {
+          Cookies.set("token", token, { expires: 7 });
+          Cookies.set("user_role", user.role, { expires: 7 });
+        }
+
+        if (user.role === "COURIER") {
+          router.replace("/dashboard/courier");
+        } else {
+          router.replace("/dashboard/user");
+        }
+      } catch (e) {
+        localStorage.clear();
+        Cookies.remove("token");
+        Cookies.remove("user_role");
+        setIsLoadingCheck(false);
+      }
     } else {
+      // If no token in localStorage, ensure cookies are also gone
+      Cookies.remove("token");
+      Cookies.remove("user_role");
       setIsLoadingCheck(false);
     }
   }, [router]);
@@ -50,12 +74,20 @@ export default function LoginPage() {
       localStorage.setItem("refresh_token", data.refresh_token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
+      // Simpan di Cookies untuk Middleware (Next.js)
+      Cookies.set("token", data.access_token, { expires: 7 });
+      Cookies.set("user_role", data.user.role, { expires: 7 });
+
       // Show proper toast
       toast.success("Login Berhasil!", {
         description: "Mengalihkan ke Dashboard...",
       });
-      
-      router.push("/dashboard/user");
+
+      if (data.user.role === "COURIER") {
+        window.location.href = "/dashboard/courier";
+      } else {
+        window.location.href = "/dashboard/user";
+      }
     },
     onError: (error: any) => {
       // ERROR LOGGER

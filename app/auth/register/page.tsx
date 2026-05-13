@@ -14,7 +14,7 @@ import AuthWrapper from "@/components/auth/AuthWrapper";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
-
+import Cookies from "js-cookie";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 export default function RegisterPage() {
@@ -23,9 +23,33 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      router.replace("/dashboard/user");
+    const userStr = localStorage.getItem("user");
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        
+        // Sync to cookies for proxy/middleware if missing
+        if (!Cookies.get("token")) {
+          Cookies.set("token", token, { expires: 7 });
+          Cookies.set("user_role", user.role, { expires: 7 });
+        }
+
+        if (user.role === "COURIER") {
+          router.replace("/dashboard/courier");
+        } else {
+          router.replace("/dashboard/user");
+        }
+      } catch (e) {
+        localStorage.clear();
+        Cookies.remove("token");
+        Cookies.remove("user_role");
+        setIsLoadingCheck(false);
+      }
     } else {
+      // If no token in localStorage, ensure cookies are also gone
+      Cookies.remove("token");
+      Cookies.remove("user_role");
       setIsLoadingCheck(false);
     }
   }, [router]);
@@ -57,11 +81,19 @@ export default function RegisterPage() {
       }
       localStorage.setItem("user", JSON.stringify(data.user));
 
+      // Simpan di Cookies untuk Middleware (Next.js)
+      Cookies.set("token", data.access_token, { expires: 7 });
+      Cookies.set("user_role", data.user.role, { expires: 7 });
+
       toast.success("Registrasi Berhasil!", {
         description: "Selamat datang! Mengalihkan ke Dashboard...",
       });
 
-      router.push("/dashboard/user");
+      if (data.user.role === "COURIER") {
+        router.push("/dashboard/courier");
+      } else {
+        router.push("/dashboard/user");
+      }
     },
     onError: (error: any) => {
       console.error("=== REGISTER ERROR ===");

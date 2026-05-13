@@ -6,11 +6,41 @@ import type { NextRequest } from 'next/server'
  * This replaces the deprecated middleware convention.
  */
 export function proxy(request: NextRequest) {
-  // Add your proxy/middleware logic here
-  return NextResponse.next()
+  const token = request.cookies.get("token")?.value;
+  const userRole = request.cookies.get("user_role")?.value;
+  const { pathname } = request.nextUrl;
+
+  // 1. Public Routes (Auth)
+  if (pathname.startsWith("/auth")) {
+    if (token) {
+      if (userRole === "COURIER") {
+        return NextResponse.redirect(new URL("/dashboard/courier", request.url));
+      }
+      return NextResponse.redirect(new URL("/dashboard/user", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 2. Protected Routes (Dashboard)
+  if (pathname.startsWith("/dashboard")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/auth/login", request.url));
+    }
+
+    // Role-based Access Control
+    if (pathname.startsWith("/dashboard/courier") && userRole !== "COURIER") {
+      return NextResponse.redirect(new URL("/dashboard/user", request.url));
+    }
+
+    if (pathname.startsWith("/dashboard/user") && userRole !== "USER") {
+      return NextResponse.redirect(new URL("/dashboard/courier", request.url));
+    }
+  }
+
+  return NextResponse.next();
 }
 
-// Optionally, add a matcher to target specific paths
+// Matcher configuration
 export const config = {
   matcher: [
     /*

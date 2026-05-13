@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { authService } from "@/services/auth.service";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { Loader2 } from "lucide-react";
+import Cookies from "js-cookie";
 
 interface GoogleAuthButtonProps {
   mode: "login" | "register";
@@ -23,7 +23,6 @@ export default function GoogleAuthButton({
   mode,
   className,
 }: GoogleAuthButtonProps) {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSdkReady, setIsSdkReady] = useState(false);
 
@@ -40,15 +39,22 @@ export default function GoogleAuthButton({
       }
       localStorage.setItem("user", JSON.stringify(data.user));
 
+      // Sync to cookies for proxy/middleware
+      Cookies.set("token", data.access_token, { expires: 7 });
+      if (data.user?.role) {
+        Cookies.set("user_role", data.user.role, { expires: 7 });
+      }
+
       toast.success(
         mode === "login" ? "Login berhasil!" : "Registrasi berhasil!",
       );
       
-      // Redirect sesuai role
-      if (data.user?.role === "courier") {
-        router.push("/dashboard/courier");
+      // Redirect sesuai role (Case insensitive check)
+      const role = data.user?.role?.toUpperCase();
+      if (role === "COURIER") {
+        window.location.href = "/dashboard/courier";
       } else {
-        router.push("/dashboard/user");
+        window.location.href = "/dashboard/user";
       }
     } catch (error: any) {
       console.error("Backend Auth Error:", error);
