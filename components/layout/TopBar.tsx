@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Bell, Search, ChevronRight, Menu, User } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -44,6 +45,8 @@ export default function TopBar({
     isLast: i === segments.length - 1,
   }));
 
+  const unreadCount = 3; // Mock unread count
+
   // Generate greeting berdasarkan waktu
   const hour = new Date().getHours();
   const greeting =
@@ -54,7 +57,6 @@ export default function TopBar({
       className={cn(
         'sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-100 dark:border-gray-800',
         'bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg px-4 md:px-6 transition-all duration-300',
-        // On mobile: no left margin. On desktop: offset by sidebar width
         collapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'
       )}
     >
@@ -81,12 +83,16 @@ export default function TopBar({
 
         {/* Notifications */}
 
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-white">
-          <Bell size={16} />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white dark:ring-gray-900">
-            3
-          </span>
-        </button>
+        <Link href="/admin/notifications">
+          <button className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-white">
+            <Bell size={16} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white dark:ring-gray-900">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+        </Link>
 
         {/* Divider — hidden on mobile */}
         <div className="hidden sm:block h-8 w-px bg-gray-100 dark:bg-gray-800" />

@@ -4,16 +4,16 @@ import React, { useState } from 'react';
 import { Pencil, Check, X, Trash2, Plus } from 'lucide-react';
 import ChartCard from '@/components/admin/ChartCard';
 import DataTable, { type Column } from '@/components/admin/DataTable';
-import {
-  mockMutuPricing,
-  mockResiduPricing,
-  type ResiduPricing,
-} from '@/services/mock/admin.mock';
-import type { PricingRule } from '@/types/models';
+import { type PricingRule } from '@/types/models';
+import { WasteCategory } from '@/types/enums';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/cn';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { adminService } from '@/services/admin.service';
+import { toast } from 'sonner';
+
 
 const fmtRupiah = (n: number) =>
   new Intl.NumberFormat('id-ID', {
@@ -21,6 +21,14 @@ const fmtRupiah = (n: number) =>
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(n);
+
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return isNaN(date.getTime()) ? '-' : date.toLocaleString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit',
+  });
+};
 
 // Mapping kendaraan → label + tarif default
 const vehicleTarifDefaults: Record<string, { label: string; tarif: number }> = {
@@ -35,11 +43,60 @@ const vehicleTarifDefaults: Record<string, { label: string; tarif: number }> = {
 const tarifPresets = [800, 1000, 1200, 1500, 2000, 2500, 3000];
 
 export default function PricingPage() {
-  const [mutuData, setMutuData] = useState(mockMutuPricing);
-  const [residuData, setResiduData] = useState(mockResiduPricing);
+  const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
   const [editLabel, setEditLabel] = useState<string>('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['waste-types'],
+    queryFn: adminService.getWasteTypes,
+  });
+
+  const wasteTypes = data?.data || [];
+  const mutuData = wasteTypes.filter(item => item.category.toString().toUpperCase() === 'MUTU');
+  const residuData = wasteTypes.filter(item => item.category.toString().toUpperCase() === 'RESIDU');
+
+  // Mutations
+  const createWasteMutation = useMutation({
+    mutationFn: adminService.createWasteType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['waste-types'] });
+      setIsMutuModalOpen(false);
+      setIsResiduModalOpen(false);
+      toast.success('Harga/Komoditas berhasil ditambahkan');
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal menambahkan data';
+      toast.error(msg);
+    },
+  });
+
+  const updateWasteMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => adminService.updateWasteType(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['waste-types'] });
+      setEditingId(null);
+      toast.success('Harga berhasil diperbarui');
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal memperbarui harga';
+      toast.error(msg);
+    },
+  });
+
+  const deleteWasteMutation = useMutation({
+    mutationFn: adminService.deleteWasteType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['waste-types'] });
+      toast.success('Data berhasil dihapus');
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal menghapus data';
+      toast.error(msg);
+    },
+  });
+
 
   // Modal states
   const [isMutuModalOpen, setIsMutuModalOpen] = useState(false);
@@ -63,33 +120,29 @@ export default function PricingPage() {
   };
 
   const saveMutuEdit = (id: string) => {
-    setMutuData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, wasteType: editLabel, pricePerKg: editValue, updatedAt: new Date().toISOString() } : item
-      )
-    );
-    setEditingId(null);
+    updateWasteMutation.mutate({ 
+      id, 
+      data: { name: editLabel, unitPrice: editValue } 
+    });
   };
 
   const saveResiduEdit = (id: string) => {
-    setResiduData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, vehicleLabel: editLabel, pricePerKg: editValue, updatedAt: new Date().toISOString() } : item
-      )
-    );
-    setEditingId(null);
+    updateWasteMutation.mutate({ 
+      id, 
+      data: { unitPrice: editValue } 
+    });
   };
 
   // -- Delete Logic
   const deleteMutu = (id: string) => {
     if (confirm('Yakin ingin menghapus komoditas ini?')) {
-      setMutuData((prev) => prev.filter(item => item.id !== id));
+      deleteWasteMutation.mutate(id);
     }
   };
 
   const deleteResidu = (id: string) => {
     if (confirm('Yakin ingin menghapus tarif residu ini?')) {
-      setResiduData((prev) => prev.filter(item => item.id !== id));
+      deleteWasteMutation.mutate(id);
     }
   };
 
@@ -97,31 +150,22 @@ export default function PricingPage() {
   const handleAddMutu = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newItem: PricingRule = {
-      id: `mutu-${Date.now()}`,
-      wasteType: formData.get('wasteType') as string,
-      category: 'MUTU' as any,
-      pricePerKg: Number(formData.get('pricePerKg')),
-      updatedAt: new Date().toISOString(),
-    };
-    setMutuData([newItem, ...mutuData]);
-    setIsMutuModalOpen(false);
+    createWasteMutation.mutate({
+      name: formData.get('name') as string,
+      category: 'MUTU',
+      unitPrice: Number(formData.get('unitPrice')),
+    });
   };
 
   // -- Add Residu Logic
   const handleAddResidu = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedVehicle || selectedTarif <= 0) return;
-    const vehicleInfo = vehicleTarifDefaults[selectedVehicle];
-    const newItem: ResiduPricing = {
-      id: `residu-${Date.now()}`,
-      vehicleType: selectedVehicle as any,
-      vehicleLabel: vehicleInfo?.label ?? selectedVehicle,
-      pricePerKg: selectedTarif,
-      updatedAt: new Date().toISOString(),
-    };
-    setResiduData([newItem, ...residuData]);
-    setIsResiduModalOpen(false);
+    createWasteMutation.mutate({
+      name: selectedVehicle,
+      category: 'RESIDU',
+      unitPrice: selectedTarif,
+    });
     setSelectedVehicle('');
     setSelectedTarif(0);
   };
@@ -129,7 +173,7 @@ export default function PricingPage() {
   // -- Columns
   const mutuColumns: Column<PricingRule>[] = [
     {
-      key: 'wasteType',
+      key: 'name',
       header: 'Tipe Komoditas',
       render: (item) => (
         <div className="flex items-center gap-2">
@@ -143,13 +187,22 @@ export default function PricingPage() {
               placeholder="Nama komoditas..."
             />
           ) : (
-            <span className="font-medium text-dark">{item.wasteType}</span>
+            <span className="font-medium text-dark">{item.name}</span>
           )}
         </div>
       ),
     },
     {
-      key: 'pricePerKg',
+      key: 'category',
+      header: 'Kategori',
+      render: (item) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary/10 text-secondary border border-secondary/20 uppercase">
+          {item.category}
+        </span>
+      ),
+    },
+    {
+      key: 'unitPrice',
       header: 'Harga / kg',
       align: 'right',
       numeric: true,
@@ -166,9 +219,19 @@ export default function PricingPage() {
           </div>
         ) : (
           <div className="flex items-center justify-end">
-            <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.pricePerKg)}</span>
+            <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.unitPrice)}</span>
           </div>
         ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Dibuat',
+      align: 'right',
+      render: (item) => (
+        <span className="text-xs text-gray-400">
+          {formatDate(item.createdAt)}
+        </span>
+      ),
     },
     {
       key: 'updatedAt',
@@ -176,9 +239,7 @@ export default function PricingPage() {
       align: 'right',
       render: (item) => (
         <span className="text-xs text-gray-400">
-          {new Date(item.updatedAt).toLocaleDateString('id-ID', {
-            day: 'numeric', month: 'short', year: 'numeric',
-          })}
+          {formatDate(item.updatedAt)}
         </span>
       ),
     },
@@ -208,7 +269,7 @@ export default function PricingPage() {
           ) : (
             <>
               <button
-                onClick={() => startEdit(item.id, item.pricePerKg, item.wasteType)}
+                onClick={() => startEdit(item.id, item.unitPrice, item.name)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm"
                 title="Edit"
               >
@@ -228,9 +289,9 @@ export default function PricingPage() {
     },
   ];
 
-  const residuColumns: Column<ResiduPricing>[] = [
+  const residuColumns: Column<PricingRule>[] = [
     {
-      key: 'vehicleLabel',
+      key: 'name',
       header: 'Tipe Kendaraan',
       render: (item) => (
         <div className="flex items-center gap-2">
@@ -244,13 +305,22 @@ export default function PricingPage() {
               placeholder="Nama kendaraan..."
             />
           ) : (
-            <span className="font-medium text-dark">{item.vehicleLabel}</span>
+            <span className="font-medium text-dark">{vehicleTarifDefaults[item.name]?.label || item.name}</span>
           )}
         </div>
       ),
     },
     {
-      key: 'pricePerKg',
+      key: 'category',
+      header: 'Kategori',
+      render: (item) => (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-600 border border-amber-200 uppercase">
+          {item.category}
+        </span>
+      ),
+    },
+    {
+      key: 'unitPrice',
       header: 'Tarif / kg',
       align: 'right',
       numeric: true,
@@ -267,9 +337,19 @@ export default function PricingPage() {
           </div>
         ) : (
           <div className="flex items-center justify-end">
-            <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.pricePerKg)}</span>
+            <span className="font-mono tabular-nums font-semibold text-dark">{fmtRupiah(item.unitPrice)}</span>
           </div>
         ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Dibuat',
+      align: 'right',
+      render: (item) => (
+        <span className="text-xs text-gray-400">
+          {formatDate(item.createdAt)}
+        </span>
+      ),
     },
     {
       key: 'updatedAt',
@@ -277,9 +357,7 @@ export default function PricingPage() {
       align: 'right',
       render: (item) => (
         <span className="text-xs text-gray-400">
-          {new Date(item.updatedAt).toLocaleDateString('id-ID', {
-            day: 'numeric', month: 'short', year: 'numeric',
-          })}
+          {formatDate(item.updatedAt)}
         </span>
       ),
     },
@@ -309,7 +387,7 @@ export default function PricingPage() {
           ) : (
             <>
               <button
-                onClick={() => startEdit(item.id, item.pricePerKg, item.vehicleLabel)}
+                onClick={() => startEdit(item.id, item.unitPrice, item.name)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-all shadow-sm"
                 title="Edit"
               >
@@ -353,6 +431,7 @@ export default function PricingPage() {
           columns={mutuColumns}
           data={mutuData}
           keyExtractor={(item) => item.id}
+          emptyMessage={isLoading ? "Memuat data mutu..." : "Belum ada komoditas mutu"}
         />
       </ChartCard>
 
@@ -370,6 +449,7 @@ export default function PricingPage() {
           columns={residuColumns}
           data={residuData}
           keyExtractor={(item) => item.id}
+          emptyMessage={isLoading ? "Memuat data tarif residu..." : "Belum ada tarif residu"}
         />
       </ChartCard>
 
@@ -380,8 +460,8 @@ export default function PricingPage() {
         title="Tambah Komoditas Mutu"
       >
         <form onSubmit={handleAddMutu} className="space-y-4">
-          <Input name="wasteType" label="Nama Komoditas (contoh: Kertas HVS)" required />
-          <Input name="pricePerKg" type="number" label="Harga per Kg (Rp)" min="0" required />
+          <Input name="name" label="Nama Komoditas (contoh: Kertas HVS)" required />
+          <Input name="unitPrice" type="number" label="Harga per Kg (Rp)" min="0" required />
           <div className="pt-4 flex justify-end gap-3 border-t border-soft-gray">
             <Button type="button" variant="outline" onClick={() => setIsMutuModalOpen(false)}>Batal</Button>
             <Button type="submit" className="bg-primary hover:bg-[#015558] border-primary text-white">Simpan Komoditas</Button>

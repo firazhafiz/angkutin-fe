@@ -17,15 +17,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     setMounted(true);
 
-    // BYPASS AUTH: Set default admin user if not exists
-    const mockAdmin = { name: 'Etmin', role: 'admin' };
-    setAdminUser(mockAdmin);
+    const token = storage.getToken();
+    const user = storage.getUser();
 
-    // Simpan ke storage agar komponen lain (seperti Sidebar) tidak error
-    if (!storage.getToken()) {
-      storage.setToken('bypass-token');
-      storage.setUser({ ...mockAdmin, id: 'admin-001', email: 'admin@angkutin.id' });
+    // // Jika tidak ada token atau bukan admin, tendang ke login
+    if (!token || !user) {
+      storage.clear(); // Bersihkan sisa data jika ada
+      router.replace('/auth/login');
+      return;
     }
+
+    setAdminUser(user as any);
   }, [router]);
 
   const handleLogout = () => {

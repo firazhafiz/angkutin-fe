@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { storage } from "@/lib/storage";
 
 import Link from "next/link";
 import AuthWrapper from "@/components/auth/AuthWrapper";
@@ -21,9 +22,20 @@ export default function LoginPage() {
   const [isLoadingCheck, setIsLoadingCheck] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      router.replace("/dashboard/user");
+    const token = storage.getToken();
+    const user = storage.getUser<any>();
+    if (token && user) {
+      try {
+        if (user.role === "ADMIN" || user.role === "admin") {
+          router.replace("/admin/dashboard");
+        } else if (user.role === "COURIER") {
+          router.replace("/dashboard/courier");
+        } else {
+          router.replace("/dashboard/user");
+        }
+      } catch (e) {
+        setIsLoadingCheck(false);
+      }
     } else {
       setIsLoadingCheck(false);
     }
@@ -45,18 +57,27 @@ export default function LoginPage() {
       console.log("Token:", data.access_token);
       console.log("User:", data.user);
 
-      // Simpan token (Best Practice)
-      localStorage.setItem("token", data.access_token);
+      // Simpan token menggunakan helper
+      storage.setToken(data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      storage.setUser(data.user);
+
 
       // Show proper toast
       toast.success("Login Berhasil!", {
         description: "Mengalihkan ke Dashboard...",
       });
       
-      router.push("/dashboard/user");
+      // Role-based redirection
+      if (data.user.role === "ADMIN") {
+        router.push("/admin/dashboard");
+      } else if (data.user.role === "COURIER") {
+        router.push("/dashboard/courier");
+      } else {
+        router.push("/dashboard/user");
+      }
     },
+
     onError: (error: any) => {
       // ERROR LOGGER
       console.error("=== AUTH ERROR ===");

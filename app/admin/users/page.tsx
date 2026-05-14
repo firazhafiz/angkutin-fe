@@ -1,31 +1,84 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Eye, ShieldCheck, Ban, Trash2 } from 'lucide-react';
+import { Search, Eye, Ban, Trash2, CheckCircle2 } from 'lucide-react';
 import DataTable, { type Column } from '@/components/admin/DataTable';
-import { mockUsers } from '@/services/mock/admin.mock';
-import type { User } from '@/types/models';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminService } from '@/services/admin.service';
+import type { UserProfile } from '@/types/api';
+import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 
 export default function UsersPage() {
   const [search, setSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Filter users based on search
-  const filteredUsers = mockUsers.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['users'],
+    queryFn: adminService.getAllUsers,
+  });
 
-  const handleViewDetail = (user: User) => {
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { status: 'ACTIVE' | 'SUSPENDED' } }) => adminService.updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Status pengguna berhasil diperbarui');
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal memperbarui status';
+      toast.error(msg);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: adminService.deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setIsDetailModalOpen(false);
+      toast.success('Pengguna berhasil dihapus');
+    },
+    onError: (error: any) => {
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal menghapus pengguna';
+      toast.error(msg);
+    },
+  });
+
+  const users = data?.data || [];
+  
+  // Only display users with role USER
+  const filteredUsers = users.filter((u) => {
+    if (u.role !== 'USER') return false;
+    const searchLower = search.toLowerCase();
+    return (
+      (u.name || '').toLowerCase().includes(searchLower) ||
+      (u.email || '').toLowerCase().includes(searchLower) ||
+      (u.phone || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  const handleViewDetail = (user: UserProfile) => {
     setSelectedUser(user);
     setIsDetailModalOpen(true);
   };
 
-  const ActionButtons = ({ user }: { user: User }) => (
+  const handleToggleStatus = (user: UserProfile) => {
+    const newStatus = user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    if (confirm(`Apakah Anda yakin ingin mengubah status ${user.name} menjadi ${newStatus}?`)) {
+      updateMutation.mutate({ id: user.id, data: { status: newStatus } });
+    }
+  };
+
+  const handleDelete = (user: UserProfile) => {
+    if (confirm(`Apakah Anda yakin ingin menghapus ${user.name} secara permanen? Data yang terkait juga akan dihapus.`)) {
+      deleteMutation.mutate(user.id);
+    }
+  };
+
+  const ActionButtons = ({ user }: { user: UserProfile }) => (
     <div className="flex items-center justify-center gap-1">
       <button 
         onClick={() => handleViewDetail(user)}
@@ -34,22 +87,35 @@ export default function UsersPage() {
       >
         <Eye size={14} />
       </button>
-      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Suspend/Ban">
-        <Ban size={14} />
+      <button 
+        onClick={() => handleToggleStatus(user)}
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
+          user.status === 'ACTIVE' 
+            ? "text-red-400 hover:bg-red-50 hover:text-red-600" 
+            : "text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
+        )} 
+        title={user.status === 'ACTIVE' ? "Suspend Akun" : "Aktifkan Akun"}
+      >
+        {user.status === 'ACTIVE' ? <Ban size={14} /> : <CheckCircle2 size={14} />}
       </button>
-      <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" title="Hapus">
+      <button 
+        onClick={() => handleDelete(user)}
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" 
+        title="Hapus Permanen"
+      >
         <Trash2 size={14} />
       </button>
     </div>
   );
 
-  const userColumns: Column<User>[] = [
+  const userColumns: Column<UserProfile>[] = [
     {
       key: 'name', header: 'Nama',
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-xs font-bold text-white">
-            {item.name.charAt(0)}
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-xs font-bold text-white uppercase">
+            {item.name ? item.name.charAt(0) : '?'}
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">{item.name}</p>
@@ -58,7 +124,25 @@ export default function UsersPage() {
         </div>
       ),
     },
-    { key: 'phone', header: 'Telepon' },
+    { 
+      key: 'phone', header: 'Telepon',
+      render: (item) => <span className="text-sm text-gray-600">{item.phone || '-'}</span>
+    },
+    {
+      key: 'status', header: 'Status', align: 'center',
+      render: (item) => (
+        <span className={cn(
+          "px-2.5 py-0.5 rounded-full text-xs font-medium",
+          item.status === 'ACTIVE' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+        )}>
+          {item.status === 'ACTIVE' ? 'Aktif' : 'Suspended'}
+        </span>
+      )
+    },
+    {
+      key: 'orders', header: 'Total Pesanan', align: 'center',
+      render: (item) => <span className="text-sm font-medium text-gray-600">{item._count?.orders || 0}</span>
+    },
     {
       key: 'createdAt', header: 'Bergabung',
       render: (item) => (
@@ -76,7 +160,7 @@ export default function UsersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-gray-900">Pengguna Terdaftar</h2>
-          <p className="text-sm text-gray-500">Kelola dan pantau aktivitas pengguna aplikasi Angkutin</p>
+          <p className="text-sm text-gray-500">Kelola dan pantau aktivitas pengguna (Customer) aplikasi Angkutin</p>
         </div>
         
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 w-full md:w-auto">
@@ -97,7 +181,7 @@ export default function UsersPage() {
           columns={userColumns} 
           data={filteredUsers} 
           keyExtractor={(i) => i.id} 
-          emptyMessage="Tidak ada pengguna ditemukan" 
+          emptyMessage={isLoading ? "Memuat data..." : isError ? "Gagal memuat data" : "Tidak ada pengguna ditemukan"} 
         />
       </div>
 
@@ -111,15 +195,18 @@ export default function UsersPage() {
         {selectedUser && (
           <div className="space-y-6">
             <div className="flex items-center gap-4 border-b border-gray-100 pb-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-2xl font-bold text-white shadow-md">
-                {selectedUser.name.charAt(0)}
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-2xl font-bold text-white shadow-md uppercase">
+                {selectedUser.name ? selectedUser.name.charAt(0) : '?'}
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">{selectedUser.name}</h3>
                 <p className="text-sm text-gray-500">{selectedUser.email}</p>
                 <div className="mt-1 flex gap-2">
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-600 capitalize">
-                    {selectedUser.role}
+                  <span className={cn(
+                    "rounded-full px-2.5 py-0.5 text-xs font-medium uppercase",
+                    selectedUser.status === 'ACTIVE' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                  )}>
+                    {selectedUser.status}
                   </span>
                   <span className="text-xs text-gray-400 flex items-center">
                     ID: {selectedUser.id}
@@ -131,7 +218,7 @@ export default function UsersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-xl bg-gray-50 p-4">
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">No. Telepon</span>
-                <p className="mt-1 font-medium text-gray-900">{selectedUser.phone}</p>
+                <p className="mt-1 font-medium text-gray-900">{selectedUser.phone || '-'}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Tanggal Bergabung</span>
@@ -141,26 +228,13 @@ export default function UsersPage() {
                   })}
                 </p>
               </div>
-            </div>
-
-            {/* Dummy Mock Details for Demo */}
-            <div>
-              <h4 className="mb-3 text-sm font-bold text-gray-900">Aktivitas Terakhir</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 rounded-lg border border-gray-100 text-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                    <span className="text-gray-600">Menyelesaikan pesanan #ORD-009</span>
-                  </div>
-                  <span className="text-gray-400 text-xs">2 jam lalu</span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-lg border border-gray-100 text-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-teal-400"></div>
-                    <span className="text-gray-600">Menambahkan metode pembayaran</span>
-                  </div>
-                  <span className="text-gray-400 text-xs">1 hari lalu</span>
-                </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Pesanan</span>
+                <p className="mt-1 font-medium text-gray-900">{selectedUser._count?.orders || 0} Pesanan</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Status Verifikasi</span>
+                <p className="mt-1 font-medium text-gray-900">{selectedUser.isVerified ? 'Terverifikasi' : 'Belum Verifikasi'}</p>
               </div>
             </div>
 

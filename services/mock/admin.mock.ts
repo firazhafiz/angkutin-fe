@@ -63,16 +63,16 @@ export const mockDailyMetrics: DailyOrderMetric[] = [
 // ──────────────────────────────────────────────────────────
 // Pricing Rules
 // ──────────────────────────────────────────────────────────
-export const mockMutuPricing: PricingRule[] = [
-  { id: "p1", wasteType: "Plastik PET", category: WasteCategory.MUTU, pricePerKg: 3_500, updatedAt: "2026-04-20" },
-  { id: "p2", wasteType: "Kardus", category: WasteCategory.MUTU, pricePerKg: 2_800, updatedAt: "2026-04-20" },
-  { id: "p3", wasteType: "Kertas HVS", category: WasteCategory.MUTU, pricePerKg: 2_200, updatedAt: "2026-04-18" },
-  { id: "p4", wasteType: "Aluminium", category: WasteCategory.MUTU, pricePerKg: 12_000, updatedAt: "2026-04-18" },
-  { id: "p5", wasteType: "Besi/Logam", category: WasteCategory.MUTU, pricePerKg: 8_500, updatedAt: "2026-04-15" },
-  { id: "p6", wasteType: "Botol Kaca", category: WasteCategory.MUTU, pricePerKg: 1_500, updatedAt: "2026-04-15" },
-  { id: "p7", wasteType: "Plastik HDPE", category: WasteCategory.MUTU, pricePerKg: 4_200, updatedAt: "2026-04-12" },
-  { id: "p8", wasteType: "Tembaga", category: WasteCategory.MUTU, pricePerKg: 65_000, updatedAt: "2026-04-10" },
-];
+// export const mockMutuPricing: PricingRule[] = [
+//   { id: "p1", wasteType: "Plastik PET", category: WasteCategory.MUTU, pricePerKg: 3_500, updatedAt: "2026-04-20" },
+//   { id: "p2", wasteType: "Kardus", category: WasteCategory.MUTU, pricePerKg: 2_800, updatedAt: "2026-04-20" },
+//   { id: "p3", wasteType: "Kertas HVS", category: WasteCategory.MUTU, pricePerKg: 2_200, updatedAt: "2026-04-18" },
+//   { id: "p4", wasteType: "Aluminium", category: WasteCategory.MUTU, pricePerKg: 12_000, updatedAt: "2026-04-18" },
+//   { id: "p5", wasteType: "Besi/Logam", category: WasteCategory.MUTU, pricePerKg: 8_500, updatedAt: "2026-04-15" },
+//   { id: "p6", wasteType: "Botol Kaca", category: WasteCategory.MUTU, pricePerKg: 1_500, updatedAt: "2026-04-15" },
+//   { id: "p7", wasteType: "Plastik HDPE", category: WasteCategory.MUTU, pricePerKg: 4_200, updatedAt: "2026-04-12" },
+//   { id: "p8", wasteType: "Tembaga", category: WasteCategory.MUTU, pricePerKg: 65_000, updatedAt: "2026-04-10" },
+// ];
 
 export interface ResiduPricing {
   id: string;

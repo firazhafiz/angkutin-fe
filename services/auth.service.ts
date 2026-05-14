@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { storage } from "@/lib/storage";
 import {
   LoginRequest,
   LoginResponse,
@@ -22,9 +23,8 @@ export const authService = {
 
   // Fungsi Logout (Client Side)
   logout() {
-    localStorage.removeItem("token");
+    storage.clear();
     localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
   },
 
   // Google Login/Register
