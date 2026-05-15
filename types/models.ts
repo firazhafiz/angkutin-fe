@@ -138,9 +138,10 @@ export interface CourierMission {
 // ==================== ADMIN ====================
 export interface PricingRule {
   id: string;
-  wasteType: string;
+  name: string;
   category: WasteCategory;
-  pricePerKg: number;
+  unitPrice: number;
+  createdAt: string;
   updatedAt: string;
 }
 

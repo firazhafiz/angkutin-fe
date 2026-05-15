@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { authService } from "@/services/auth.service";
+import { storage } from "@/lib/storage";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { Loader2 } from "lucide-react";
@@ -33,11 +34,12 @@ export default function GoogleAuthButton({
       const idToken = response.credential;
       const data = await authService.loginWithGoogle(idToken);
 
-      localStorage.setItem("token", data.access_token);
+      // Save with unified storage helper
+      storage.setToken(data.access_token);
       if (data.refresh_token) {
         localStorage.setItem("refresh_token", data.refresh_token);
       }
-      localStorage.setItem("user", JSON.stringify(data.user));
+      storage.setUser(data.user);
 
       // Sync to cookies for proxy/middleware
       Cookies.set("token", data.access_token, { expires: 7 });
@@ -45,17 +47,21 @@ export default function GoogleAuthButton({
         Cookies.set("user_role", data.user.role, { expires: 7 });
       }
 
+      // Google auth hanya untuk role USER
+      const role = data.user?.role?.toUpperCase();
+      if (role !== "USER") {
+        authService.logout();
+        toast.error("Akun ini tidak dapat login dengan Google", {
+          description: "Silakan gunakan email dan password untuk login.",
+        });
+        return;
+      }
+
       toast.success(
         mode === "login" ? "Login berhasil!" : "Registrasi berhasil!",
       );
       
-      // Redirect sesuai role (Case insensitive check)
-      const role = data.user?.role?.toUpperCase();
-      if (role === "COURIER") {
-        window.location.href = "/dashboard/courier";
-      } else {
-        window.location.href = "/dashboard/user";
-      }
+      window.location.href = "/dashboard/user";
     } catch (error: any) {
       console.error("Backend Auth Error:", error);
       const message =

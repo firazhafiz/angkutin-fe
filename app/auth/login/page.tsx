@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { storage } from "@/lib/storage";
 
 import Link from "next/link";
 import AuthWrapper from "@/components/auth/AuthWrapper";
@@ -21,20 +22,21 @@ export default function LoginPage() {
   const [isLoadingCheck, setIsLoadingCheck] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
+    const token = storage.getToken();
+    const user = storage.getUser<any>();
 
-    if (token && userStr) {
+    if (token && user) {
       try {
-        const user = JSON.parse(userStr);
-        
         // Sync to cookies for proxy/middleware if missing
         if (!Cookies.get("token")) {
           Cookies.set("token", token, { expires: 7 });
           Cookies.set("user_role", user.role, { expires: 7 });
         }
 
-        if (user.role === "COURIER") {
+        const role = user.role?.toUpperCase();
+        if (role === "ADMIN") {
+          router.replace("/admin/dashboard");
+        } else if (role === "COURIER") {
           router.replace("/dashboard/courier");
         } else {
           router.replace("/dashboard/user");
@@ -69,10 +71,10 @@ export default function LoginPage() {
       console.log("Token:", data.access_token);
       console.log("User:", data.user);
 
-      // Simpan token (Best Practice)
-      localStorage.setItem("token", data.access_token);
+      // Simpan token menggunakan helper
+      storage.setToken(data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      storage.setUser(data.user);
 
       // Simpan di Cookies untuk Middleware (Next.js)
       Cookies.set("token", data.access_token, { expires: 7 });
@@ -83,26 +85,31 @@ export default function LoginPage() {
         description: "Mengalihkan ke Dashboard...",
       });
 
-      if (data.user.role === "COURIER") {
+      // Role-based redirection using window.location for full refresh
+      const role = data.user.role?.toUpperCase();
+      if (role === "ADMIN") {
+        window.location.href = "/admin/dashboard";
+      } else if (role === "COURIER") {
         window.location.href = "/dashboard/courier";
       } else {
         window.location.href = "/dashboard/user";
       }
     },
+
     onError: (error: any) => {
       // ERROR LOGGER
       console.error("=== AUTH ERROR ===");
       let message =
-        error.response?.data?.message || 
+        error.response?.data?.message ||
         error.response?.data?.error ||
         error.response?.data?.errors?.[0]?.message ||
         "Email atau password salah!";
-      
+
       // If the message is just "Unauthorized", translate it to something more user-friendly
       if (message.toLowerCase() === "unauthorized") {
         message = "Email atau password salah!";
       }
-      
+
       toast.error("Gagal Login", {
         description: message,
       });

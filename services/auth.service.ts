@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import Cookies from "js-cookie";
+import { storage } from "@/lib/storage";
 import {
   LoginRequest,
   LoginResponse,
@@ -25,11 +26,15 @@ export const authService = {
     return response.data.data;
   },
 
-  // Fungsi Logout (Client Side)
+  // Fungsi Logout (Client Side) — clears ALL auth state
   logout() {
+    // Clear new storage keys (angkutin_token, angkutin_user)
+    storage.clear();
+    // Clear legacy keys from pre-merge code
     localStorage.removeItem("token");
-    localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
+    localStorage.removeItem("refresh_token");
+    // Clear cookies used by proxy/middleware
     Cookies.remove("token");
     Cookies.remove("user_role");
   },

@@ -13,7 +13,11 @@ export function proxy(request: NextRequest) {
   // 1. Public Routes (Auth)
   if (pathname.startsWith("/auth")) {
     if (token) {
-      if (userRole === "COURIER") {
+      const role = userRole?.toUpperCase();
+      if (role === "ADMIN") {
+        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      }
+      if (role === "COURIER") {
         return NextResponse.redirect(new URL("/dashboard/courier", request.url));
       }
       return NextResponse.redirect(new URL("/dashboard/user", request.url));
@@ -21,19 +25,35 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Protected Routes (Dashboard)
-  if (pathname.startsWith("/dashboard")) {
+  // 2. Protected Routes (Dashboard & Admin)
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
     if (!token) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
 
-    // Role-based Access Control
-    if (pathname.startsWith("/dashboard/courier") && userRole !== "COURIER") {
+    const role = userRole?.toUpperCase();
+
+    // Admin Routes Protection
+    if (pathname.startsWith("/admin") && role !== "ADMIN") {
+      if (role === "COURIER") {
+        return NextResponse.redirect(new URL("/dashboard/courier", request.url));
+      }
       return NextResponse.redirect(new URL("/dashboard/user", request.url));
     }
 
-    if (pathname.startsWith("/dashboard/user") && userRole !== "USER") {
-      return NextResponse.redirect(new URL("/dashboard/courier", request.url));
+    // Role-based Access Control for Dashboards
+    if (pathname.startsWith("/dashboard/courier") && role !== "COURIER" && role !== "ADMIN") {
+      if (role === "USER") {
+        return NextResponse.redirect(new URL("/dashboard/user", request.url));
+      }
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    }
+
+    if (pathname.startsWith("/dashboard/user") && role !== "USER" && role !== "ADMIN") {
+      if (role === "COURIER") {
+        return NextResponse.redirect(new URL("/dashboard/courier", request.url));
+      }
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
   }
 

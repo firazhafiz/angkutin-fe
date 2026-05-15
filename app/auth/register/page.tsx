@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
+import { storage } from "@/lib/storage";
 import { RegisterRequest } from "@/types/auth";
 import AuthWrapper from "@/components/auth/AuthWrapper";
 import { Input } from "@/components/ui/Input";
@@ -22,32 +23,31 @@ export default function RegisterPage() {
   const [isLoadingCheck, setIsLoadingCheck] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
+    const token = storage.getToken();
+    const user = storage.getUser<any>();
 
-    if (token && userStr) {
+    if (token && user) {
       try {
-        const user = JSON.parse(userStr);
-        
         // Sync to cookies for proxy/middleware if missing
         if (!Cookies.get("token")) {
           Cookies.set("token", token, { expires: 7 });
           Cookies.set("user_role", user.role, { expires: 7 });
         }
 
-        if (user.role === "COURIER") {
+        const role = user.role?.toUpperCase();
+        if (role === "ADMIN") {
+          router.replace("/admin/dashboard");
+        } else if (role === "COURIER") {
           router.replace("/dashboard/courier");
         } else {
           router.replace("/dashboard/user");
         }
       } catch (e) {
-        localStorage.clear();
-        Cookies.remove("token");
-        Cookies.remove("user_role");
+        authService.logout();
         setIsLoadingCheck(false);
       }
     } else {
-      // If no token in localStorage, ensure cookies are also gone
+      // If no token, ensure cookies are also gone
       Cookies.remove("token");
       Cookies.remove("user_role");
       setIsLoadingCheck(false);
@@ -74,14 +74,14 @@ export default function RegisterPage() {
     mutationFn: authService.register,
     onSuccess: (data: any) => {
       console.log("=== REGISTER SUCCESS ===");
-      // Gunakan access_token sesuai dengan struktur API terbaru
-      localStorage.setItem("token", data.access_token);
+      // Save with unified storage helper
+      storage.setToken(data.access_token);
       if (data.refresh_token) {
         localStorage.setItem("refresh_token", data.refresh_token);
       }
-      localStorage.setItem("user", JSON.stringify(data.user));
+      storage.setUser(data.user);
 
-      // Simpan di Cookies untuk Middleware (Next.js)
+      // Simpan di Cookies untuk Middleware
       Cookies.set("token", data.access_token, { expires: 7 });
       Cookies.set("user_role", data.user.role, { expires: 7 });
 
@@ -89,10 +89,13 @@ export default function RegisterPage() {
         description: "Selamat datang! Mengalihkan ke Dashboard...",
       });
 
-      if (data.user.role === "COURIER") {
-        router.push("/dashboard/courier");
+      const role = data.user.role?.toUpperCase();
+      if (role === "ADMIN") {
+        window.location.href = "/admin/dashboard";
+      } else if (role === "COURIER") {
+        window.location.href = "/dashboard/courier";
       } else {
-        router.push("/dashboard/user");
+        window.location.href = "/dashboard/user";
       }
     },
     onError: (error: any) => {

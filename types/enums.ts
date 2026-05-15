@@ -31,7 +31,6 @@ export enum ScheduleType {
 export enum PaymentMethod {
   WALLET = "wallet",
   QRIS = "qris",
-  VA = "va",
 }
 
 export enum WasteCategory {
