@@ -57,7 +57,25 @@ export default function CourierDashboard() {
     queryFn: walletService.getBalance,
   });
 
+  const { data: txData, isLoading: isTxLoading } = useQuery({
+    queryKey: ["walletTransactions"],
+    queryFn: walletService.getTransactions,
+  });
+
   const walletBalance = walletData?.data?.balance || 0;
+
+  // Filter and limit transactions for the dashboard
+  const transactions = (txData?.data || [])
+    .filter((tx) => ["SUCCESS"].includes(tx.status))
+    .slice(0, 5);
+
+  const formatDateShort = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   return (
     <DashboardLayout role="courier">
@@ -316,7 +334,7 @@ export default function CourierDashboard() {
               isLoading={isWalletLoading}
               showOrderButton={false}
               showWithdrawButton={true}
-              onWithdraw={() => console.log("Withdraw")}
+              onWithdraw={() => (window.location.href = "/dashboard/courier/wallet")}
             />
 
             {/* Bottom Sub-Grid: Stats+Tips | Accounts | History */}
@@ -366,7 +384,7 @@ export default function CourierDashboard() {
               </div>
 
               {/* Right: History */}
-              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm flex flex-col">
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm flex flex-col h-full max-h-[400px]">
                 <div className="p-5 border-b border-gray-50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <HistoryIcon size={18} className="text-dark" />
@@ -374,11 +392,14 @@ export default function CourierDashboard() {
                       Riwayat Terakhir
                     </h3>
                   </div>
-                  <button className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                  <button
+                    onClick={() => (window.location.href = "/dashboard/courier/wallet")}
+                    className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline"
+                  >
                     Detail
                   </button>
                 </div>
-                <div className="divide-y divide-gray-50 overflow-y-auto max-h-[360px]">
+                <div className="divide-y divide-gray-50 overflow-y-auto">
                   {[1, 2, 3, 4, 5].map((_, i) => (
                     <div
                       key={i}

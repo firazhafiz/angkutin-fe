@@ -17,6 +17,7 @@ import {
   ChevronRight,
   HelpCircle,
   MapPin,
+  Loader2,
 } from "lucide-react";
 
 export default function UserDashboard() {
@@ -25,7 +26,24 @@ export default function UserDashboard() {
     queryFn: walletService.getBalance,
   });
 
+  const { data: txData, isLoading: isTxLoading } = useQuery({
+    queryKey: ["walletTransactions"],
+    queryFn: walletService.getTransactions,
+  });
+
   const walletBalance = walletData?.data?.balance || 0;
+  
+  // Filter and limit transactions for the dashboard
+  const transactions = (txData?.data || [])
+    .filter((tx) => ["SUCCESS"].includes(tx.status))
+    .slice(0, 6);
+
+  const formatDateShort = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+    });
+  };
 
   return (
     <DashboardLayout role="user">
@@ -96,8 +114,8 @@ export default function UserDashboard() {
             <WalletCard
               balance={walletBalance}
               isLoading={isWalletLoading}
-              onOrder={() => console.log("Start Order")}
-              onWithdraw={() => console.log("Withdraw")}
+              onOrder={() => (window.location.href = "/dashboard/user/order")}
+              onWithdraw={() => (window.location.href = "/dashboard/user/wallet")}
             />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-6">
@@ -181,7 +199,7 @@ export default function UserDashboard() {
           {/* Column 2: Riwayat */}
           <div className="lg:col-span-1 space-y-6">
             {/* Riwayat Aktivitas (Top 3 for space) */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full max-h-[500px]">
               <div className="pt-4 px-4 pb-2 border-b border-gray-50 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-gray-50 rounded-lg">
@@ -191,94 +209,73 @@ export default function UserDashboard() {
                     Riwayat
                   </h3>
                 </div>
-                <button className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1">
+                <button
+                  onClick={() => (window.location.href = "/dashboard/user/wallet")}
+                  className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                >
                   Semua <ChevronRight size={12} />
                 </button>
               </div>
 
               <div className="divide-y divide-gray-50 flex-1 overflow-auto">
-                {[
-                  {
-                    id: 1,
-                    type: "Antar Sampah",
-                    date: "24 April",
-                    amount: "+ Rp 25.000",
-                    status: "Berhasil",
-                  },
-                  {
-                    id: 2,
-                    type: "Antar Sampah",
-                    date: "21 April",
-                    amount: "- Rp 12.000",
-                    status: "Berhasil",
-                  },
-                  {
-                    id: 3,
-                    type: "Tarik Saldo",
-                    date: "18 April",
-                    amount: "- Rp 50.000",
-                    status: "Proses",
-                  },
-                  {
-                    id: 4,
-                    type: "Tarik Saldo",
-                    date: "18 April",
-                    amount: "- Rp 50.000",
-                    status: "Proses",
-                  },
-                  {
-                    id: 5,
-                    type: "Tarik Saldo",
-                    date: "18 April",
-                    amount: "- Rp 50.000",
-                    status: "Proses",
-                  },
-                  {
-                    id: 6,
-                    type: "Tarik Saldo",
-                    date: "18 April",
-                    amount: "- Rp 50.000",
-                    status: "Proses",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center text-[8px] font-black",
-                          item.amount.startsWith("+")
-                            ? "bg-primary-light/40 text-green-600"
-                            : "bg-red-50 text-red-600",
-                        )}
-                      >
-                        {item.amount.startsWith("+") ? "IN" : "OUT"}
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold text-dark">
-                          {item.type}
-                        </p>
-                        <p className="text-[9px] text-gray-400 font-medium">
-                          {item.date}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={cn(
-                          "text-[11px] font-bold",
-                          item.amount.startsWith("+")
-                            ? "text-green-600"
-                            : "text-dark",
-                        )}
-                      >
-                        {item.amount}
-                      </p>
-                    </div>
+                {isTxLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
                   </div>
-                ))}
+                ) : transactions.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Belum ada riwayat
+                    </p>
+                  </div>
+                ) : (
+                  transactions.map((item) => {
+                    const isIncome = item.type === "CREDIT";
+                    const isWithdrawal = item.referenceType === "WITHDRAWAL";
+                    const displayTitle = isWithdrawal
+                      ? "Tarik Saldo"
+                      : (item.description || item.referenceType).split(" - ")[0];
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "w-8 h-8 rounded-lg flex items-center justify-center text-[8px] font-black",
+                              isIncome
+                                ? "bg-primary-light/40 text-green-600"
+                                : "bg-red-50 text-red-600",
+                            )}
+                          >
+                            {isIncome ? "IN" : "OUT"}
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-bold text-dark">
+                              {displayTitle}
+                            </p>
+                            <p className="text-[9px] text-gray-400 font-medium">
+                              {formatDateShort(item.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p
+                            className={cn(
+                              "text-[11px] font-bold",
+                              isIncome ? "text-green-600" : "text-dark",
+                            )}
+                          >
+                            {isIncome ? "+" : "-"} Rp{" "}
+                            {item.amount.toLocaleString("id-ID")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

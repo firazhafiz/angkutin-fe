@@ -5,119 +5,85 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
 import BankAccountsList from "@/components/dashboard/BankAccountsList";
+import WithdrawModal from "@/components/dashboard/WithdrawModal";
 import {
   Wallet,
   ArrowUpRight,
   Plus,
   ArrowDownLeft,
   History,
-  Search,
-  Filter,
-  CreditCard,
-  Gift,
   TrendingUp,
-  Calendar,
-  ChevronRight,
-  MoreVertical,
-  Edit2,
-  Trash2,
-  X,
-  Check,
+  Loader2,
+  Clock,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-interface ConnectedAccount {
-  id: string;
-  type: "bank" | "ewallet";
-  provider: string;
-  accountName: string;
-  accountNumber: string;
-  color: string;
-  isPrimary?: boolean;
-}
-
-const PROVIDERS = {
-  bank: [
-    {
-      name: "Bank Central Asia",
-      code: "BCA",
-      color: "bg-blue-50 text-blue-600",
-    },
-    {
-      name: "Bank Mandiri",
-      code: "MANDIRI",
-      color: "bg-yellow-50 text-yellow-600",
-    },
-    {
-      name: "Bank Rakyat Indonesia",
-      code: "BRI",
-      color: "bg-blue-100 text-blue-700",
-    },
-    {
-      name: "Bank Negara Indonesia",
-      code: "BNI",
-      color: "bg-orange-50 text-orange-600",
-    },
-  ],
-  ewallet: [
-    { name: "DANA", code: "DANA", color: "bg-blue-500 text-white" },
-    { name: "ShopeePay", code: "SHOPEEPAY", color: "bg-orange-500 text-white" },
-    { name: "GoPay", code: "GOPAY", color: "bg-cyan-500 text-white" },
-    { name: "OVO", code: "OVO", color: "bg-purple-600 text-white" },
-  ],
-};
 
 export default function CourierWalletPage() {
+  const [showWithdraw, setShowWithdraw] = useState(false);
+
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
     queryKey: ["walletBalance"],
     queryFn: walletService.getBalance,
   });
 
+  const { data: txData, isLoading: isTxLoading } = useQuery({
+    queryKey: ["walletTransactions"],
+    queryFn: walletService.getTransactions,
+  });
+
   const walletBalance = walletData?.data?.balance || 0;
 
-  const [activeTab, setActiveTab] = useState("Semua");
+  // Filter: only show PENDING, SUCCESS, FAILED (skip PROCESSING)
+  const transactions = (txData?.data || []).filter((tx) =>
+    ["PENDING", "SUCCESS", "FAILED"].includes(tx.status),
+  );
 
-  const transactions = [
-    {
-      id: "TX-9921",
-      type: "Income",
-      title: "Komisi Penjemputan Sampah",
-      category: "Angkutin",
-      date: "24 April 2024",
-      amount: "+ Rp 25.000",
-      points: "+ 125 pts",
-      status: "Berhasil",
-    },
-    {
-      id: "TX-9920",
-      type: "Expense",
-      title: "Tarik Saldo Komisi",
-      category: "Bank Transfer",
-      date: "21 April 2024",
-      amount: "- Rp 150.000",
-      points: null,
-      status: "Berhasil",
-    },
-    {
-      id: "TX-9919",
-      type: "Income",
-      title: "Bonus Performa Tepat Waktu",
-      category: "Reward",
-      date: "18 April 2024",
-      amount: "+ Rp 50.000",
-      points: "+ 50 pts",
-      status: "Berhasil",
-    },
-    {
-      id: "TX-9918",
-      type: "Expense",
-      title: "Tarik Saldo Komisi",
-      category: "E-Wallet",
-      date: "15 April 2024",
-      amount: "- Rp 100.000",
-      points: null,
-      status: "Berhasil",
-    },
-  ];
+  // Calculate totals from transactions
+  const totalIncome = transactions
+    .filter((tx) => tx.type === "CREDIT" && tx.status === "SUCCESS")
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const totalExpense = transactions
+    .filter((tx) => tx.type === "DEBIT" && tx.status === "SUCCESS")
+    .reduce((sum, tx) => sum + tx.amount, 0);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "SUCCESS":
+        return {
+          label: "Berhasil",
+          color: "bg-green-50 text-green-600 border-green-100",
+          icon: CheckCircle2,
+        };
+      case "PENDING":
+        return {
+          label: "Menunggu",
+          color: "bg-orange-50 text-orange-600 border-orange-100",
+          icon: Clock,
+        };
+      case "FAILED":
+        return {
+          label: "Gagal",
+          color: "bg-red-50 text-red-600 border-red-100",
+          icon: XCircle,
+        };
+      default:
+        return {
+          label: status,
+          color: "bg-gray-50 text-gray-600 border-gray-100",
+          icon: Clock,
+        };
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
   return (
     <DashboardLayout role="courier">
@@ -156,7 +122,10 @@ export default function CourierWalletPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-                <button className="py-4 bg-primary-light rounded-full text-xs text-dark font-black uppercase tracking-widest transition-all border border-white/5 cursor-pointer">
+                <button
+                  onClick={() => setShowWithdraw(true)}
+                  className="py-4 bg-primary-light rounded-full text-xs text-dark font-black uppercase tracking-widest transition-all border border-white/5 cursor-pointer hover:opacity-90 active:scale-[0.98]"
+                >
                   Tarik Saldo
                 </button>
               </div>
@@ -169,13 +138,13 @@ export default function CourierWalletPage() {
             {[
               {
                 label: "Total Komisi",
-                value: "2.400.000",
+                value: totalIncome,
                 icon: TrendingUp,
                 color: "bg-green-50 text-green-600",
               },
               {
                 label: "Total Ditarik",
-                value: "1.850.000",
+                value: totalExpense,
                 icon: ArrowDownLeft,
                 color: "bg-red-50 text-red-600",
               },
@@ -200,7 +169,7 @@ export default function CourierWalletPage() {
                   <div className="flex items-baseline gap-1">
                     <span className="text-xs font-bold text-gray-500">Rp</span>
                     <p className="text-2xl md:text-3xl font-black text-dark tracking-tighter">
-                      {stat.value}
+                      {stat.value.toLocaleString("id-ID")}
                     </p>
                   </div>
                 </div>
@@ -223,71 +192,88 @@ export default function CourierWalletPage() {
             </div>
 
             <div className="space-y-3">
-              {transactions.map((tx, index) => (
-                <div
-                  key={index}
-                  className="group bg-white p-5 rounded-xl border border-gray-50 hover:border-primary/20 transition-all flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
-                        tx.type === "Income"
-                          ? "bg-green-50 text-green-600"
-                          : "bg-red-50 text-red-600",
-                      )}
-                    >
-                      {tx.type === "Income" ? (
-                        <Plus size={20} />
-                      ) : (
-                        <ArrowUpRight size={20} />
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-dark text-sm leading-none mb-1.5">
-                        {tx.title}
-                      </h4>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        {tx.category}{" "}
-                        <span className="w-1 h-1 rounded-full bg-gray-200" />{" "}
-                        {tx.date}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={cn(
-                        "font-black text-sm tracking-tight mb-1",
-                        tx.type === "Income"
-                          ? "text-green-600"
-                          : "text-red-600",
-                      )}
-                    >
-                      {tx.amount}
-                    </p>
-                    <span
-                      className={cn(
-                        "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                        tx.status === "Berhasil"
-                          ? "bg-green-50 text-green-600 border-green-100"
-                          : "bg-orange-50 text-orange-600 border-orange-100",
-                      )}
-                    >
-                      {tx.status}
-                    </span>
-                  </div>
+              {isTxLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
                 </div>
-              ))}
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <History
+                    size={40}
+                    className="text-gray-300 mx-auto mb-4 opacity-50"
+                  />
+                  <p className="text-xs text-gray-400 font-regular uppercase tracking-widest">
+                    Belum ada transaksi
+                  </p>
+                </div>
+              ) : (
+                transactions.map((tx) => {
+                  const badge = getStatusBadge(tx.status);
+                  const isIncome = tx.type === "CREDIT";
+                  return (
+                    <div
+                      key={tx.id}
+                      className="group bg-white p-5 rounded-xl border border-gray-50 hover:border-primary/20 transition-all flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={cn(
+                            "w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
+                            isIncome
+                              ? "bg-green-50 text-green-600"
+                              : "bg-red-50 text-red-600",
+                          )}
+                        >
+                          {isIncome ? (
+                            <Plus size={20} />
+                          ) : (
+                            <ArrowUpRight size={20} />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-dark text-sm leading-none mb-1.5">
+                            {(tx.description || tx.referenceType).split(" - ")[0]}
+                          </h4>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                            {tx.referenceType}
+                            <span className="w-1 h-1 rounded-full bg-gray-200" />
+                            {formatDate(tx.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={cn(
+                            "font-black text-sm tracking-tight mb-1",
+                            isIncome ? "text-green-600" : "text-red-600",
+                          )}
+                        >
+                          {isIncome ? "+" : "-"} Rp{" "}
+                          {tx.amount.toLocaleString("id-ID")}
+                        </p>
+                        <span
+                          className={cn(
+                            "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                            badge.color,
+                          )}
+                        >
+                          {badge.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
-
-            <button className="w-full py-6 rounded-full border border-dashed  text-primary text-sm font-bold border-primary cursor-pointer">
-              Lihat Semua Transaksi
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Deleted Redundant Modals */}
+      <WithdrawModal
+        isOpen={showWithdraw}
+        onClose={() => setShowWithdraw(false)}
+        balance={walletBalance}
+      />
     </DashboardLayout>
   );
 }

@@ -4,6 +4,9 @@ import {
   WalletAccountsResponse,
   WalletAccountResponse,
   WalletAccount,
+  WithdrawRequest,
+  WithdrawResponse,
+  WalletTransactionsResponse,
 } from "@/types/wallet";
 
 export const walletService = {
@@ -66,6 +69,23 @@ export const walletService = {
     const response = await api.patch<WalletAccountResponse>(
       `/wallet/accounts/${id}`,
       data,
+    );
+    return response.data;
+  },
+
+  // Withdraw funds
+  async withdraw(data: WithdrawRequest): Promise<WithdrawResponse> {
+    const response = await api.post<WithdrawResponse>(
+      "/wallet/withdraw",
+      data,
+    );
+    return response.data;
+  },
+
+  // Get transaction history
+  async getTransactions(): Promise<WalletTransactionsResponse> {
+    const response = await api.get<WalletTransactionsResponse>(
+      "/wallet/transactions",
     );
     return response.data;
   },
