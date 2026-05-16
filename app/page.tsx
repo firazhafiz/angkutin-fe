@@ -4,6 +4,8 @@ import Testimoni from "@/components/landing/Testimoni";
 import About from "@/components/landing/About";
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/Hero";
+import GallerySection from "@/components/landing/Gallery";
+import BlogSection from "@/components/landing/Blog";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
@@ -13,6 +15,8 @@ export default function Home() {
       <HeroSection />
       <About />
       <Testimoni />
+      <GallerySection />
+      <BlogSection />
       <CtaBanner />
       <Footer />
     </div>
