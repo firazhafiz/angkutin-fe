@@ -72,9 +72,14 @@ export const courierService = {
     return response.data;
   },
 
-  /** Submit waste weights — POST /api/couriers/orders/:id/weigh */
-  async submitWeighing(id: string, data: { mutuKg: number; residuKg: number; wasteType?: string; photoUrl?: string }) {
-    const response = await api.post(`/couriers/orders/${id}/weigh`, data);
+  /** Submit weighing result — POST /api/couriers/orders/:id/weigh */
+  async submitWeighing(id: string, wasteTypeId: string, photo?: File) {
+    const formData = new FormData();
+    formData.append("wasteTypeId", wasteTypeId);
+    if (photo) formData.append("photo", photo);
+    const response = await api.post(`/couriers/orders/${id}/weigh`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return response.data;
   },
 
@@ -90,9 +95,13 @@ export const courierService = {
     return response.data;
   },
 
-  /** Complete order with evidence — POST /api/couriers/orders/:id/complete */
-  async completeOrder(id: string, data?: { photoUrl?: string }) {
-    const response = await api.post(`/couriers/orders/${id}/complete`, data || {});
+  /** Complete order with evidence photo — POST /api/couriers/orders/:id/complete */
+  async completeOrder(id: string, photo?: File) {
+    const formData = new FormData();
+    if (photo) formData.append("file", photo);
+    const response = await api.post(`/couriers/orders/${id}/complete`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return response.data;
   },
 

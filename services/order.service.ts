@@ -96,4 +96,49 @@ export const orderService = {
     const response = await api.get(`/orders/${id}/tracking/history`);
     return response.data;
   },
+
+  /**
+   * Get Waste Types (pricing)
+   * GET /api/waste-types
+   */
+  async getWasteTypes() {
+    const response = await api.get("/waste-types");
+    return response.data;
+  },
+
+  /**
+   * Get Weighing Summary
+   * GET /api/orders/:id/weighing-summary
+   */
+  async getWeighingSummary(id: string) {
+    const response = await api.get(`/orders/${id}/weighing-summary`);
+    return response.data;
+  },
+
+  /**
+   * User confirms weighing result
+   * POST /api/orders/:id/confirm
+   */
+  async confirmWeighing(id: string) {
+    const response = await api.post(`/orders/${id}/confirm`);
+    return response.data;
+  },
+
+  /**
+   * User pays for order
+   * POST /api/orders/:id/pay
+   */
+  async payOrder(id: string, method: "WALLET" | "E_WALLET") {
+    const response = await api.post(`/orders/${id}/pay`, { method });
+    return response.data;
+  },
+
+  /**
+   * Get payment status
+   * GET /api/orders/:id/payment
+   */
+  async getPayment(id: string) {
+    const response = await api.get(`/orders/${id}/payment`);
+    return response.data;
+  },
 };

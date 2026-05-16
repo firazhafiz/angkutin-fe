@@ -6,6 +6,16 @@ import { MapPin, Navigation, Loader2 } from "lucide-react";
 // Mapbox GL JS types
 let mapboxgl: any = null;
 
+/** Haversine distance between two lat/lng points in meters */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export interface MapboxMarker {
   id: string;
   lat: number;
@@ -25,6 +35,12 @@ interface MapboxViewProps {
   routeFrom?: [number, number];
   routeTo?: [number, number];
   onRouteUpdate?: (info: { duration: number; distance: number }) => void;
+  /** Enable animated courier movement along route polyline */
+  animateCourier?: boolean;
+  /** Speed of animation: ms per coordinate step (lower = faster). Default 800 */
+  animationSpeed?: number;
+  /** Callback when courier reaches near destination (~500m) */
+  onCourierArrived?: () => void;
 }
 
 export default function MapboxView({
@@ -37,10 +53,17 @@ export default function MapboxView({
   routeFrom,
   routeTo,
   onRouteUpdate,
+  animateCourier = false,
+  animationSpeed = 800,
+  onCourierArrived,
 }: MapboxViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const routeCoordinatesRef = useRef<[number, number][]>([]);
+  const animationIndexRef = useRef(0);
+  const animationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const arrivedFiredRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -176,6 +199,9 @@ export default function MapboxView({
         .setLngLat([m.lng, m.lat])
         .addTo(map.current);
 
+      // Tag courier markers for animation lookup
+      (marker as any)._courierType = m.type;
+
       markersRef.current.push(marker);
     });
   }, [markers, loaded]);
@@ -216,6 +242,11 @@ export default function MapboxView({
           const json = await query.json();
           const data = json.routes[0];
           const route = data.geometry.coordinates;
+
+          // Store route coordinates for animation
+          routeCoordinatesRef.current = route;
+          animationIndexRef.current = 0;
+          arrivedFiredRef.current = false;
 
           // Notify parent of route info (duration in seconds, distance in meters)
           if (onRouteUpdate) {
@@ -273,6 +304,58 @@ export default function MapboxView({
       fetchRoute();
     }
   }, [showRoute, routeFrom, routeTo, markers, loaded]);
+
+  // Animated courier movement along polyline
+  useEffect(() => {
+    if (!animateCourier || !loaded || !mapboxgl || routeCoordinatesRef.current.length < 2) {
+      return;
+    }
+
+    // Clear any previous animation
+    if (animationTimerRef.current) {
+      clearInterval(animationTimerRef.current);
+      animationTimerRef.current = null;
+    }
+
+    const coords = routeCoordinatesRef.current;
+    // Start from beginning if not started
+    if (animationIndexRef.current >= coords.length) {
+      animationIndexRef.current = 0;
+    }
+
+    animationTimerRef.current = setInterval(() => {
+      const idx = animationIndexRef.current;
+      if (idx >= coords.length) {
+        if (animationTimerRef.current) clearInterval(animationTimerRef.current);
+        return;
+      }
+
+      const [lng, lat] = coords[idx];
+
+      // Find courier marker and move it
+      const courierMarkerObj = markersRef.current.find((m: any) => m._courierType === "courier");
+      if (courierMarkerObj) {
+        courierMarkerObj.setLngLat([lng, lat]);
+      }
+
+      // Check distance to destination (last coordinate)
+      const dest = coords[coords.length - 1];
+      const distMeters = haversineDistance(lat, lng, dest[1], dest[0]);
+      if (distMeters < 500 && !arrivedFiredRef.current) {
+        arrivedFiredRef.current = true;
+        onCourierArrived?.();
+      }
+
+      animationIndexRef.current = idx + 1;
+    }, animationSpeed);
+
+    return () => {
+      if (animationTimerRef.current) {
+        clearInterval(animationTimerRef.current);
+        animationTimerRef.current = null;
+      }
+    };
+  }, [animateCourier, loaded, animationSpeed, onCourierArrived, routeCoordinatesRef.current.length]);
 
   // Fallback UI when token is placeholder/missing
   if (error || !token || token.startsWith("pk.placeholder")) {

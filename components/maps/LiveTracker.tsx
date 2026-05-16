@@ -4,6 +4,7 @@ import { Navigation, Phone, MessageCircle, Clock, MapPin } from "lucide-react";
 import MapboxView, { MapboxMarker } from "./MapboxView";
 import { cn } from "@/lib/cn";
 import { OrderStatus } from "@/types/enums";
+import { ANGKUTIN_WAREHOUSE } from "@/lib/constants";
 
 interface LiveTrackerProps {
   status: OrderStatus;
@@ -16,6 +17,8 @@ interface LiveTrackerProps {
   courierLat?: number;
   courierLng?: number;
   etaMinutes?: number;
+  /** Called when animated courier reaches near destination */
+  onCourierArrived?: () => void;
 }
 
 const statusLabels: Partial<Record<OrderStatus, string>> = {
@@ -39,10 +42,15 @@ export default function LiveTracker({
   courierLat,
   courierLng,
   etaMinutes = 8,
+  onCourierArrived,
 }: LiveTrackerProps) {
   const [eta, setEta] = useState(etaMinutes);
 
-  // ETA is now dynamically updated by Mapbox Directions API via onRouteUpdate
+  // Determine if delivering to warehouse
+  const isDelivering = status === OrderStatus.DELIVERING;
+  const destLat = isDelivering ? ANGKUTIN_WAREHOUSE.lat : userLat;
+  const destLng = isDelivering ? ANGKUTIN_WAREHOUSE.lng : userLng;
+  const shouldAnimate = status === OrderStatus.ON_GOING || isDelivering;
 
   const showMap =
     status === OrderStatus.MATCHED || 
@@ -53,19 +61,22 @@ export default function LiveTracker({
   const markers: MapboxMarker[] = [];
 
   if (showMap) {
-    // User / Destination marker
+    // Destination marker
     markers.push({
       id: "destination",
-      lat: userLat,
-      lng: userLng,
-      type: status === OrderStatus.DELIVERING ? "destination" : "user",
+      lat: destLat,
+      lng: destLng,
+      type: isDelivering ? "destination" : "user",
+      label: isDelivering ? ANGKUTIN_WAREHOUSE.label : undefined,
     });
 
-    // Courier marker
+    // Courier marker — for DELIVERING, start at user address (pickup location)
+    const cLat = isDelivering ? userLat : (courierLat || userLat - 0.005);
+    const cLng = isDelivering ? userLng : (courierLng || userLng - 0.005);
     markers.push({
       id: "courier",
-      lat: courierLat || userLat - 0.005,
-      lng: courierLng || userLng - 0.005,
+      lat: cLat,
+      lng: cLng,
       type: "courier",
       isOnline: true,
     });
@@ -76,12 +87,15 @@ export default function LiveTracker({
       {/* Map Area */}
       <div className="relative h-56 sm:h-64 shrink-0">
         {showMap ? (
-          <MapboxView
+        <MapboxView
             className="w-full h-full"
-            center={[userLng, userLat]}
+            center={[destLng, destLat]}
             zoom={14}
             markers={markers}
             showRoute={true}
+            animateCourier={shouldAnimate}
+            animationSpeed={800}
+            onCourierArrived={onCourierArrived}
             onRouteUpdate={({ duration }) => {
               setEta(Math.ceil(duration / 60));
             }}

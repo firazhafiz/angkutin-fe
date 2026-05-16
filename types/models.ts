@@ -72,6 +72,8 @@ export interface Order {
   // Nested relations
   address?: Address;
   wasteItems?: WasteItem[];
+  residuals?: ResidualItem[];
+  payments?: PaymentRecord[];
   aiResults?: AiResult[];
   statusHistory?: StatusHistoryEntry[];
   courier?: CourierWithUser | null;
@@ -127,12 +129,78 @@ export interface CourierMatch {
 export interface WasteItem {
   id: string;
   orderId: string;
-  category: WasteCategory;
-  type?: string; // e.g. "Plastik PET", "Kardus", etc.
-  weightKg: number;
+  wasteTypeId?: string;
+  weight: number;
+  price: number;
+  subtotal: number;
+  wasteType?: WasteType;
+  // Legacy compat fields (mapped from BE)
+  category?: WasteCategory;
+  type?: string;
+  weightKg?: number;
+  pricePerKg?: number;
+  photoUrl?: string;
+}
+
+/** Waste type from BE GET /waste-types */
+export interface WasteType {
+  id: string;
+  name: string;
+  category: "MUTU" | "RESIDU";
+  unitPrice: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Residual item from BE order response */
+export interface ResidualItem {
+  id: string;
+  orderId: string;
+  weight: number;
   pricePerKg: number;
   subtotal: number;
-  photoUrl?: string; // proof photo for residu
+  photoUrl: string;
+}
+
+/** Payment record from BE */
+export interface PaymentRecord {
+  id: string;
+  orderId: string;
+  userId: string;
+  externalId: string;
+  gatewayId: string | null;
+  amount: number;
+  method: string;
+  status: string;
+  invoiceUrl: string | null;
+  expiredAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Weighing summary from BE GET /orders/:id/weighing-summary */
+export interface WeighingSummary {
+  orderId: string;
+  status: string;
+  courier: { id: string; name: string; phone: string; vehicleType: string };
+  mutuItems: Array<{
+    id: string; wasteTypeName: string; category: string;
+    weight: number; pricePerKg: number; subtotal: number;
+  }>;
+  residuals: Array<{
+    id: string; weight: number; pricePerKg: number;
+    subtotal: number; photoUrl: string;
+  }>;
+  summary: {
+    totalMutuWeight: number; totalResidualWeight: number; totalWeight: number;
+    totalCredit: number; totalDebit: number; netTotal: number;
+    userReceives: number; userPays: number;
+    formattedCredit: string; formattedDebit: string; formattedNetTotal: string;
+    formattedUserReceives: string; formattedUserPays: string;
+    paymentRequired: boolean; paymentStatus: string | null;
+  };
+  payment: PaymentRecord | null;
 }
 
 export interface TriageResult {

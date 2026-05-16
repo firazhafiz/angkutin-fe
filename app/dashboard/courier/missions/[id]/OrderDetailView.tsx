@@ -22,6 +22,8 @@ import { useQuery } from "@tanstack/react-query";
 import { orderService } from "@/services/order.service";
 import { OrderStatus, WasteCategory } from "@/types/enums";
 import type { Order } from "@/types/models";
+import MapboxView from "@/components/maps/MapboxView";
+import { parseDecimal } from "@/lib/decimal";
 
 interface OrderDetailViewProps {
   id: string;
@@ -134,6 +136,32 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
 
   const timeline = buildTimeline(order);
   const wasteItems = order.wasteItems || [];
+  const residuals = order.residuals || [];
+
+  // Merge mutu items + residual items into a single display list
+  const allItems: Array<{
+    id: string;
+    label: string;
+    weight: number;
+    subtotal: number;
+    isResidu: boolean;
+  }> = [
+    ...wasteItems.map((item) => ({
+      id: item.id,
+      label: item.wasteType?.name || item.type || "Sampah Mutu",
+      weight: item.weight || item.weightKg || 0,
+      subtotal: item.subtotal,
+      isResidu: false,
+    })),
+    ...residuals.map((item) => ({
+      id: item.id,
+      label: "Sampah Residu",
+      weight: item.weight,
+      subtotal: item.subtotal,
+      isResidu: true,
+    })),
+  ];
+
   const statusLabel = STATUS_TIMELINE_MAP[order.status] || order.status;
   const addressText = order.address?.addressDetail ||
     [order.address?.village, order.address?.district].filter(Boolean).join(", ") || "-";
@@ -202,24 +230,26 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                   <Package size={18} className="text-primary" /> Rincian Pengangkutan
                 </h3>
                 <div className="px-4 py-2 bg-primary-light rounded-full text-[10px] font-black text-gray-500 border border-gray-100">
-                  {wasteItems.length > 0 ? `${wasteItems.length} ITEM` : "BELUM ADA"}
+                  {allItems.length > 0 ? `${allItems.length} ITEM` : "BELUM ADA"}
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-6 items-start">
                 <div className="space-y-2 w-full">
-                  {wasteItems.length > 0 ? wasteItems.map((item, index) => (
-                    <div key={item.id || index} className="flex items-center justify-between p-4 border border-primary rounded-xl transition-all group">
+                  {allItems.length > 0 ? allItems.map((item, index) => (
+                    <div key={item.id || index} className={cn(
+                      "flex items-center justify-between p-4 border rounded-xl transition-all group",
+                      item.isResidu ? "border-red-200 bg-red-50/30" : "border-primary"
+                    )}>
                       <div className="flex items-center gap-5">
-                        <span className="text-2xl font-black text-primary/40">{index + 1}</span>
+                        <span className={cn("text-2xl font-black", item.isResidu ? "text-red-300" : "text-primary/40")}>{index + 1}</span>
                         <div>
-                          <p className="text-sm font-bold text-dark">
-                            {item.category === WasteCategory.MUTU ? "Sampah Mutu" : "Sampah Residu"}
-                            {item.type ? ` (${item.type})` : ""}
-                          </p>
-                          <p className="text-xs font-bold text-gray-400">{item.weightKg} kg</p>
+                          <p className="text-sm font-bold text-dark">{item.label}</p>
+                          <p className="text-xs font-bold text-gray-400">{item.weight} kg</p>
                         </div>
                       </div>
-                      <p className="font-black text-dark tracking-tight">{formatCurrency(item.subtotal)}</p>
+                      <p className={cn("font-black tracking-tight", item.isResidu ? "text-red-500" : "text-dark")}>
+                        {item.isResidu ? "- " : ""}{formatCurrency(item.subtotal)}
+                      </p>
                     </div>
                   )) : (
                     <div className="p-6 border border-dashed border-gray-200 rounded-xl text-center">
@@ -247,14 +277,23 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
           <div className="lg:col-span-5 space-y-10">
             {/* Map Preview */}
             <div className="relative group">
-              <div className="relative h-72 rounded-2xl overflow-hidden border border-primary/10 bg-[#cad9d7] flex items-center justify-center shadow-inner">
-                <div className="relative flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center animate-ping absolute"></div>
-                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center relative shadow-xl border-4 border-white">
-                    <MapPin size={24} />
-                  </div>
-                </div>
-                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50">
+              <div className="relative h-72 rounded-2xl overflow-hidden border border-primary/10 bg-[#cad9d7] shadow-inner pointer-events-none">
+                <MapboxView
+                  center={[
+                    parseDecimal(order.address?.longitude) || 112.7521,
+                    parseDecimal(order.address?.latitude) || -7.2575,
+                  ]}
+                  zoom={15}
+                  markers={[
+                    {
+                      id: "pickup",
+                      lat: parseDecimal(order.address?.latitude) || -7.2575,
+                      lng: parseDecimal(order.address?.longitude) || 112.7521,
+                      type: "user",
+                    },
+                  ]}
+                />
+                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50 pointer-events-auto shadow-sm">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
                     <MapPin size={20} />
                   </div>

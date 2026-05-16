@@ -319,7 +319,7 @@ export default function CourierHistoryPage() {
                         </div>
 
                         <Link
-                          href={`/dashboard/courier/missions/${order.id}`}
+                          href={`/dashboard/courier/history/${order.id}`}
                           className="flex items-center gap-1 text-[10px] font-bold text-primary group/btn"
                         >
                           Lihat Detail{" "}

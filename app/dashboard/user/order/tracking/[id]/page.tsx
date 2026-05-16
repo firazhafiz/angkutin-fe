@@ -18,13 +18,16 @@ import {
   XCircle,
   Ban,
   AlertTriangle,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { OrderStatus } from "@/types/enums";
 import { cn } from "@/lib/cn";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orderService } from "@/services/order.service";
-import type { Order } from "@/types/models";
+import type { Order, WeighingSummary } from "@/types/models";
 
 // ─── Weighing View (User: Read-Only, waiting) ───
 function WeighingView() {
@@ -50,15 +53,33 @@ function WeighingView() {
   );
 }
 
-// ─── Weighing Summary (User: after courier submits) ───
-function WeighingSummaryView({ order }: { order: Order }) {
-  const wasteItems = order.wasteItems || [];
-  const mutuItems = wasteItems.filter((w) => w.category === "mutu");
-  const residuItems = wasteItems.filter((w) => w.category === "residu");
-  const mutuKg = mutuItems.reduce((s, w) => s + (w.weightKg || 0), 0);
-  const residuKg = residuItems.reduce((s, w) => s + (w.weightKg || 0), 0);
-  const needsPayment = (order.totalDebit ?? 0) > 0;
+// ─── Weighing Summary (User: from BE API, with Confirm CTA) ───
+function WeighingSummaryView({
+  orderId,
+  onConfirm,
+  loading,
+}: {
+  orderId: string;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  const { data: summaryRes } = useQuery({
+    queryKey: ["weighingSummary", orderId],
+    queryFn: () => orderService.getWeighingSummary(orderId),
+    refetchInterval: 5000,
+  });
+  const summary: WeighingSummary | null = summaryRes?.data || null;
 
+  if (!summary) {
+    return (
+      <div className="p-4 text-center py-8">
+        <Loader2 size={24} className="text-primary animate-spin mx-auto mb-3" />
+        <p className="text-xs text-gray-400">Memuat ringkasan timbangan...</p>
+      </div>
+    );
+  }
+
+  const s = summary.summary;
   return (
     <div className="p-4 space-y-4">
       <div className="text-center py-3">
@@ -67,97 +88,201 @@ function WeighingSummaryView({ order }: { order: Order }) {
         </div>
         <h3 className="text-lg font-black text-dark">Hasil Penimbangan</h3>
         <p className="text-xs text-gray-500 mt-1">
-          Ringkasan sampah yang telah ditimbang kurir
+          Periksa dan konfirmasi hasil timbangan
         </p>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-gray-300 rounded-2xl overflow-hidden ">
         <div className="p-4 grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
           <div className="pr-4">
-            <p className="text-[9px] font-black text-green-600 uppercase tracking-widest mb-1">
-              Total Mutu
-            </p>
+            <p className="text-xs font-bold text-green-600 mb-1">Total Mutu</p>
             <p className="text-2xl font-black text-dark">
-              {mutuKg.toFixed(1)} kg
+              {s.totalMutuWeight} kg
+            </p>
+            <p className="text-xs text-green-600 font-bold">
+              {s.formattedCredit}
             </p>
           </div>
           <div className="pl-4">
-            <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">
-              Total Residu
-            </p>
+            <p className="text-xs font-bold text-red-500 mb-1">Total Residu</p>
             <p className="text-2xl font-black text-dark">
-              {residuKg.toFixed(1)} kg
+              {s.totalResidualWeight} kg
             </p>
+            <p className="text-xs text-red-500 font-bold">{s.formattedDebit}</p>
           </div>
         </div>
 
-        {wasteItems.length > 0 && (
-          <div className="p-4 space-y-3">
-            <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                Jenis Sampah
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {wasteItems.map((w, i) => (
-                  <span
-                    key={i}
-                    className="px-2.5 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-600"
-                  >
-                    {w.type || w.category}
-                  </span>
-                ))}
+        {/* Item details */}
+        {summary.mutuItems.length > 0 && (
+          <div className="p-4 space-y-2 border-b border-gray-100">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Detail Mutu
+            </p>
+            {summary.mutuItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between text-xs"
+              >
+                <span className="text-gray-600 font-medium">
+                  {item.wasteTypeName} ({item.weight} kg)
+                </span>
+                <span className="font-bold text-green-600">
+                  + Rp {item.subtotal.toLocaleString("id-ID")}
+                </span>
               </div>
-            </div>
+            ))}
+          </div>
+        )}
 
-            <div className="pt-2 border-t border-dashed border-gray-100">
-              {order.totalCredit > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-gray-500">Kredit (Mutu)</span>
-                  <span className="text-xs font-bold text-green-600">
-                    + Rp {order.totalCredit.toLocaleString("id-ID")}
-                  </span>
-                </div>
-              )}
-              {(order.totalDebit ?? 0) > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-gray-500">Debit (Residu)</span>
-                  <span className="text-xs font-bold text-red-500">
-                    - Rp {(order.totalDebit ?? 0).toLocaleString("id-ID")}
-                  </span>
-                </div>
-              )}
-            </div>
+        {summary.residuals.length > 0 && (
+          <div className="p-4 space-y-2 border-b border-gray-100">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Detail Residu
+            </p>
+            {summary.residuals.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between text-xs"
+              >
+                <span className="text-gray-600 font-medium">
+                  Residu ({item.weight} kg)
+                </span>
+                <span className="font-bold text-red-500">
+                  - Rp {item.subtotal.toLocaleString("id-ID")}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
         <div
           className={cn(
             "p-4 flex items-center justify-between",
-            needsPayment ? "bg-red-50" : "bg-primary/5",
+            s.netTotal >= 0 ? "bg-green-50" : "bg-red-50",
           )}
         >
-          <p className="text-xs font-black text-dark uppercase">
-            {needsPayment ? "Total Tagihan" : "Saldo Masuk"}
-          </p>
+          <p className="text-xs font-black text-dark uppercase">Net Total</p>
           <p
             className={cn(
               "text-lg font-black",
-              needsPayment ? "text-red-600" : "text-primary",
+              s.netTotal >= 0 ? "text-green-600" : "text-red-500",
             )}
           >
-            Rp{" "}
-            {Math.abs(order.netTotal ?? order.totalCredit ?? 0).toLocaleString(
-              "id-ID",
-            )}
+            {s.formattedNetTotal}
           </p>
+        </div>
+
+        {/* Highlight what user gets/pays */}
+        <div className="p-4 bg-gray-50">
+          {s.userReceives > 0 && (
+            <p className="text-xs text-green-600 font-bold text-center">
+              💰 Anda menerima {s.formattedUserReceives} ke saldo
+            </p>
+          )}
+          {s.userPays > 0 && (
+            <p className="text-xs text-red-500 font-bold text-center">
+              ⚠️ Anda perlu membayar {s.formattedUserPays}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 pt-2">
-        <CheckCircle2 size={14} className="text-secondary" />
-        <span className="text-[10px] font-bold text-gray-400">
-          Data telah divalidasi oleh sistem
-        </span>
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {loading ? (
+          <>
+            <Loader2 size={16} className="animate-spin" /> Memproses...
+          </>
+        ) : (
+          <>
+            <CheckCircle2 size={16} /> Konfirmasi Timbangan
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Payment View (User: WALLET payment) ───
+function PaymentView({
+  orderId,
+  onPay,
+  loading,
+}: {
+  orderId: string;
+  onPay: (method: "WALLET" | "E_WALLET") => void;
+  loading: boolean;
+}) {
+  const { data: summaryRes } = useQuery({
+    queryKey: ["weighingSummary", orderId],
+    queryFn: () => orderService.getWeighingSummary(orderId),
+  });
+  const summary: WeighingSummary | null = summaryRes?.data || null;
+  const s = summary?.summary;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="text-center py-3">
+        <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
+          <Wallet size={28} className="text-red-500" />
+        </div>
+        <h3 className="text-lg font-black text-dark">Pembayaran Diperlukan</h3>
+        <p className="text-xs text-gray-500 mt-1">
+          Biaya residu lebih tinggi dari kredit mutu
+        </p>
+      </div>
+
+      {s && (
+        <div className="p-5 rounded-2xl bg-red-50 border border-red-100 text-center">
+          <p className="text-xs font-bold text-red-400 tracking-wide mb-1">
+            Nominal Charge
+          </p>
+          <p className="text-3xl font-black text-red-600">
+            {s.formattedUserPays}
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+          Metode Pembayaran
+        </p>
+
+        {/* WALLET option */}
+        <button
+          onClick={() => onPay("WALLET")}
+          disabled={loading}
+          className="w-full p-4 rounded-xl border-2 border-primary bg-primary/5 flex items-center gap-3 cursor-pointer hover:bg-primary/10 transition-colors disabled:opacity-50"
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Wallet size={20} className="text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-black text-dark">Saldo Angkutin</p>
+            <p className="text-[10px] text-gray-400 font-bold">
+              Bayar dari saldo wallet Anda
+            </p>
+          </div>
+          {loading ? (
+            <Loader2 size={16} className="animate-spin text-primary" />
+          ) : (
+            <CheckCircle2 size={16} className="text-primary" />
+          )}
+        </button>
+
+        {/* E_WALLET option — disabled for now */}
+        <div className="w-full p-4 rounded-xl border border-gray-200 bg-gray-50 flex items-center gap-3 opacity-50">
+          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+            <Wallet size={20} className="text-gray-400" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-gray-500">E-Wallet (Xendit)</p>
+            <p className="text-[10px] text-gray-400 font-bold">Segera hadir</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -431,6 +556,35 @@ export default function TrackingPage() {
   const queryClient = useQueryClient();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const refetchOrder = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["trackingOrder", orderId] });
+  }, [queryClient, orderId]);
+
+  const handleConfirm = async () => {
+    setConfirmLoading(true);
+    try {
+      await orderService.confirmWeighing(orderId);
+      refetchOrder();
+    } catch (err: any) {
+      console.error("Confirm failed:", err);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handlePay = async (method: "WALLET" | "E_WALLET") => {
+    setConfirmLoading(true);
+    try {
+      await orderService.payOrder(orderId, method);
+      refetchOrder();
+    } catch (err: any) {
+      console.error("Payment failed:", err);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
 
   // Poll order status from BE every 5 seconds
   const { data: orderResponse, isLoading } = useQuery({
@@ -607,9 +761,30 @@ export default function TrackingPage() {
             />
           )}
 
-          {showWeighing && <WeighingView />}
+          {showWeighing &&
+            (() => {
+              // Sub-state: check if weighing data is available
+              const hasWeighingData =
+                order.wasteItems && order.wasteItems.length > 0;
+              if (hasWeighingData) {
+                return (
+                  <WeighingSummaryView
+                    orderId={orderId}
+                    onConfirm={() => handleConfirm()}
+                    loading={confirmLoading}
+                  />
+                );
+              }
+              return <WeighingView />;
+            })()}
 
-          {showPayment && <WeighingSummaryView order={order} />}
+          {showPayment && (
+            <PaymentView
+              orderId={orderId}
+              onPay={(method) => handlePay(method)}
+              loading={confirmLoading}
+            />
+          )}
 
           {showPickup && <PickupView />}
 

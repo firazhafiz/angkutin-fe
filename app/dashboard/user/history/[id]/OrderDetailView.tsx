@@ -23,6 +23,8 @@ import { useQuery } from "@tanstack/react-query";
 import { orderService } from "@/services/order.service";
 import { OrderStatus, WasteCategory } from "@/types/enums";
 import type { Order } from "@/types/models";
+import MapboxView from "@/components/maps/MapboxView";
+import { parseDecimal } from "@/lib/decimal";
 
 interface OrderDetailViewProps {
   id: string;
@@ -164,8 +166,33 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
 
   const timeline = buildTimeline(order);
   const wasteItems = order.wasteItems || [];
-  const statusLabel =
-    STATUS_TIMELINE_MAP[order.status] || order.status;
+  const residuals = order.residuals || [];
+
+  // Merge mutu items + residual items into a single display list
+  const allItems: Array<{
+    id: string;
+    label: string;
+    weight: number;
+    subtotal: number;
+    isResidu: boolean;
+  }> = [
+    ...wasteItems.map((item) => ({
+      id: item.id,
+      label: item.wasteType?.name || item.type || "Sampah Mutu",
+      weight: item.weight || item.weightKg || 0,
+      subtotal: item.subtotal,
+      isResidu: false,
+    })),
+    ...residuals.map((item) => ({
+      id: item.id,
+      label: "Sampah Residu",
+      weight: item.weight,
+      subtotal: item.subtotal,
+      isResidu: true,
+    })),
+  ];
+
+  const statusLabel = STATUS_TIMELINE_MAP[order.status] || order.status;
 
   return (
     <DashboardLayout role="user">
@@ -196,9 +223,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                     Status Saat Ini
                   </p>
-                  <h3 className="text-lg font-black text-dark uppercase">
-                    {statusLabel}
-                  </h3>
+                  <h3 className="text-lg font-bold text-dark">{statusLabel}</h3>
                 </div>
               </div>
               <div className="text-right">
@@ -254,36 +279,51 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                   Rincian Pengangkutan
                 </h3>
                 <div className="px-4 py-2 bg-primary-light rounded-full text-[10px] font-black text-gray-500 border border-gray-100">
-                  {wasteItems.length > 0
-                    ? `${wasteItems.length} ITEM`
+                  {allItems.length > 0
+                    ? `${allItems.length} ITEM`
                     : "BELUM ADA"}
                 </div>
               </div>
               <div className="flex flex-col md:flex-row gap-6 items-start">
                 <div className="space-y-2 w-full">
-                  {wasteItems.length > 0 ? (
-                    wasteItems.map((item, index) => (
+                  {allItems.length > 0 ? (
+                    allItems.map((item, index) => (
                       <div
                         key={item.id || index}
-                        className="flex items-center justify-between p-4 border border-primary rounded-xl transition-all group"
+                        className={cn(
+                          "flex items-center justify-between p-4 border rounded-xl transition-all group",
+                          item.isResidu
+                            ? "border-red-200 bg-red-50/30"
+                            : "border-primary",
+                        )}
                       >
                         <div className="flex items-center gap-5">
-                          <span className="text-2xl font-black text-primary/40">
+                          <span
+                            className={cn(
+                              "text-2xl font-black",
+                              item.isResidu
+                                ? "text-red-300"
+                                : "text-primary/40",
+                            )}
+                          >
                             {index + 1}
                           </span>
                           <div>
                             <p className="text-sm font-bold text-dark">
-                              {item.category === WasteCategory.MUTU
-                                ? "Sampah Mutu"
-                                : "Sampah Residu"}
-                              {item.type ? ` (${item.type})` : ""}
+                              {item.label}
                             </p>
                             <p className="text-xs font-bold text-gray-400">
-                              {item.weightKg} kg
+                              {item.weight} kg
                             </p>
                           </div>
                         </div>
-                        <p className="font-black text-dark tracking-tight">
+                        <p
+                          className={cn(
+                            "font-black tracking-tight",
+                            item.isResidu ? "text-red-500" : "text-dark",
+                          )}
+                        >
+                          {item.isResidu ? "- " : ""}
                           {formatCurrency(item.subtotal)}
                         </p>
                       </div>
@@ -318,14 +358,23 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
           <div className="lg:col-span-5 space-y-10">
             {/* Map Preview */}
             <div className="relative group">
-              <div className="relative h-72 rounded-2xl overflow-hidden border border-primary/10 bg-[#cad9d7] flex items-center justify-center shadow-inner">
-                <div className="relative flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center animate-ping absolute"></div>
-                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center relative shadow-xl border-4 border-white">
-                    <MapPin size={24} />
-                  </div>
-                </div>
-                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50">
+              <div className="relative h-72 rounded-2xl overflow-hidden border border-primary/10 bg-[#cad9d7] shadow-inner pointer-events-none">
+                <MapboxView
+                  center={[
+                    parseDecimal(order.address?.longitude) || 112.7521,
+                    parseDecimal(order.address?.latitude) || -7.2575,
+                  ]}
+                  zoom={15}
+                  markers={[
+                    {
+                      id: "pickup",
+                      lat: parseDecimal(order.address?.latitude) || -7.2575,
+                      lng: parseDecimal(order.address?.longitude) || 112.7521,
+                      type: "user",
+                    },
+                  ]}
+                />
+                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50 pointer-events-auto shadow-sm">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
                     <MapPin size={20} />
                   </div>
@@ -367,10 +416,10 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                   </p>
                   {order.courier && (
                     <div className="flex gap-2">
-                      <button className="flex-1 py-2 bg-primary/10 text-primary rounded-md text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
+                      <button className="flex-1 py-2 bg-primary/10 text-primary rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
                         Chat
                       </button>
-                      <button className="px-3 py-2 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-all">
+                      <button className="px-3 py-2 text-gray-500 hover:text-gray-800 transition-all">
                         <Phone size={14} />
                       </button>
                     </div>
@@ -392,9 +441,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
 
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-white/50 font-medium">
-                        Jadwal
-                      </span>
+                      <span className="text-white/50 font-medium">Jadwal</span>
                       <span className="font-bold capitalize">
                         {order.scheduleType.toLowerCase()}
                       </span>
@@ -403,7 +450,9 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                       <span className="text-white/50 font-medium">
                         Waktu Transaksi
                       </span>
-                      <span className="font-bold">{formatDate(order.createdAt)}</span>
+                      <span className="font-bold">
+                        {formatDate(order.createdAt)}
+                      </span>
                     </div>
                     {order.note && (
                       <div className="flex justify-between items-center text-xs">
@@ -418,7 +467,8 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     <div className="pt-6 border-t border-white/10 flex items-end justify-between">
                       <div>
                         <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">
-                          {order.netTotal !== null && order.netTotal !== undefined
+                          {order.netTotal !== null &&
+                          order.netTotal !== undefined
                             ? "NET TOTAL"
                             : "KREDIT MUTU"}
                         </p>
@@ -444,10 +494,10 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
 
               {/* Action Strip */}
               <div className="flex gap-4">
-                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-md text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm">
+                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
                   <Download size={16} className="text-primary" /> Struk PDF
                 </button>
-                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-md text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm">
+                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
                   <HelpCircle size={16} className="text-primary" /> Bantuan
                 </button>
               </div>

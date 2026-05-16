@@ -22,3 +22,17 @@ export const WITHDRAWAL_PROVIDERS = ["DANA", "ShopeePay", "GoPay", "OVO", "Bank 
 // Map default center (Surabaya)
 export const MAP_DEFAULT_CENTER = { lat: -7.2575, lng: 112.7521 };
 export const MAP_DEFAULT_ZOOM = 13;
+
+/** Gudang Angkutin — Jl. Rungkut Industri No. 5, Surabaya */
+export const ANGKUTIN_WAREHOUSE = {
+  lat: -7.3283,
+  lng: 112.7753,
+  label: "Gudang Angkutin",
+  address: "Jl. Rungkut Industri No. 5, Surabaya",
+} as const;
+
+/** Simulation animation speed (ms per polyline step) */
+export const COURIER_ANIMATION_SPEED = 800;
+
+/** Radius (in meters) to consider courier "arrived" at destination */
+export const ARRIVAL_RADIUS_METERS = 500;
