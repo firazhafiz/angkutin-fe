@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function CtaBanner() {
   return (
-    <section id="ourmission" className="md:py-24 py-8 px-6">
+    <section id="ourmission" className="md:py-24 py-16 px-6">
       <div className="container mx-auto max-w-6xl">
         <div className="relative rounded-2xl md:rounded-3xl overflow-hidden h-48 md:h-80">
           <Image

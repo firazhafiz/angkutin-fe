@@ -14,9 +14,9 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <About />
-      <Testimoni />
       <GallerySection />
       <BlogSection />
+      <Testimoni />
       <CtaBanner />
       <Footer />
     </div>
