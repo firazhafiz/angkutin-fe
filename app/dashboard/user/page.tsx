@@ -7,6 +7,7 @@ import StatCard from "@/components/dashboard/StatCard";
 import { useQuery } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
 import { orderService } from "@/services/order.service";
+import { addressService } from "@/services/address.service";
 import MapboxView, { MapboxMarker } from "@/components/maps/MapboxView";
 import { OrderStatus } from "@/types/enums";
 import type { Order } from "@/types/models";
@@ -23,6 +24,7 @@ import {
   MapPin,
   Loader2,
   Package,
+  AlertCircle,
 } from "lucide-react";
 
 // Status yang menandakan order sedang aktif (belum selesai/batal)
@@ -63,6 +65,11 @@ export default function UserDashboard() {
   const { data: ordersData } = useQuery({
     queryKey: ["userOrders"],
     queryFn: () => orderService.getOrders(),
+  });
+
+  const { data: addressesData, isLoading: isAddressesLoading } = useQuery({
+    queryKey: ["userAddresses"],
+    queryFn: addressService.getAddresses,
   });
 
   const walletBalance = walletData?.data?.balance || 0;
@@ -117,6 +124,25 @@ export default function UserDashboard() {
   return (
     <DashboardLayout role="user">
       <div className="space-y-6">
+        {/* Warning Banner if No Address */}
+        {!isAddressesLoading && (!addressesData?.data || addressesData.data.length === 0) && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-red-700">Alamat Belum Diisi</h4>
+              <p className="text-xs text-red-600 mt-1">
+                Anda belum mengatur alamat penjemputan. Silakan isi alamat terlebih dahulu agar kurir dapat menjemput sampah Anda.
+              </p>
+              <button
+                onClick={() => (window.location.href = "/dashboard/user/profile?tab=address")}
+                className="mt-3 text-xs font-bold bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                Isi Alamat Sekarang
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header Section: Spans Full Width */}
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-1">

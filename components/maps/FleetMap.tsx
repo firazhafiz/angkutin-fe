@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Radar, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,16 +10,19 @@ interface FleetMapProps {
   onCancel?: () => void;
   matchAfterSeconds?: number;
   externalMatched?: boolean;
-  startTime?: string; // ISO string from order.createdAt
+  startTime?: string;
 }
 
 export default function FleetMap({
+  onMatch,
+  onTimeout,
   onCancel,
   matchAfterSeconds = 180,
   externalMatched = false,
   startTime,
 }: FleetMapProps) {
   const [now, setNow] = useState(new Date());
+  const hasTimedOutRef = useRef(false);
   const matched = externalMatched;
 
   // Update clock every second
@@ -33,14 +36,23 @@ export default function FleetMap({
   const start = startTime ? new Date(startTime) : now;
   const elapsedTotal = Math.floor((now.getTime() - start.getTime()) / 1000);
   
-  // Looping logic: elapsed % totalCycle gives where we are in current cycle
-  const elapsedInCycle = elapsedTotal > 0 ? (elapsedTotal % totalCycle) : 0;
-  const remaining = Math.max(0, totalCycle - elapsedInCycle);
+  // Reset hasTimedOut if startTime changes
+  useEffect(() => {
+    hasTimedOutRef.current = false;
+  }, [startTime]);
+
+  // Trigger timeout when elapsed time reaches totalCycle
+  useEffect(() => {
+    if (elapsedTotal >= totalCycle && onTimeout && !matched && !hasTimedOutRef.current) {
+      hasTimedOutRef.current = true;
+      onTimeout();
+    }
+  }, [elapsedTotal, totalCycle, onTimeout, matched]);
+
+  const remaining = Math.max(0, totalCycle - elapsedTotal);
   
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
-
-  const hasLooped = elapsedTotal >= totalCycle;
 
   return (
     <div className="w-full flex flex-col items-center gap-8 py-10">
@@ -73,12 +85,10 @@ export default function FleetMap({
       {/* Status Text */}
       <div className="text-center space-y-2">
         <h3 className="text-lg font-black text-dark">
-          {hasLooped ? "Terus Mencari Kurir Terbaik..." : "Mencari Kurir Terdekat..."}
+          Mencari Kurir Terdekat...
         </h3>
         <p className="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
-          {hasLooped 
-            ? "Kami terus mengusahakan mencari kurir terbaik untuk Anda. Mohon tunggu sebentar lagi."
-            : "Sedang mencari kurir terdekat di area Surabaya. Proses ini biasanya memakan waktu kurang dari 1 menit."}
+          Sedang mencari kurir terdekat di area Anda. Proses ini dapat memakan waktu hingga beberapa menit.
         </p>
       </div>
 
