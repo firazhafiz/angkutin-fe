@@ -7,6 +7,7 @@ import { ChevronLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { orderService } from "@/services/order.service";
 import { OrderStatus } from "@/types/enums";
+import { toast } from "sonner";
 
 export default function SearchPage() {
   const router = useRouter();
@@ -15,7 +16,9 @@ export default function SearchPage() {
   const [isMatched, setIsMatched] = useState(false);
   const [isAccepted, setIsAccepted] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const [orderCreatedAt, setOrderCreatedAt] = useState<string | undefined>();
+  const [overrideStartTime, setOverrideStartTime] = useState<string | undefined>();
   const [isCancelling, setIsCancelling] = useState(false);
 
   // Poll BE for order status every 2s
@@ -58,8 +61,28 @@ export default function SearchPage() {
     // This is called by FleetMap internal timer
   }, []);
 
-  const handleTimeout = () => {
-    router.push("/dashboard/user");
+  const handleTimeout = useCallback(() => {
+    setShowTimeoutModal(true);
+  }, []);
+
+  const cancelOrderTimeout = async () => {
+    setIsCancelling(true);
+    try {
+      if (orderId) {
+        await orderService.cancelOrder(orderId, "Tidak ada kurir yang tersedia. Batas waktu pencarian habis.");
+      }
+      toast.error("Maaf, tidak ada kurir yang tersedia saat ini. Pesanan Anda dibatalkan otomatis.");
+      router.push("/dashboard/user");
+    } catch (err) {
+      console.error("Cancel failed on timeout:", err);
+      toast.error("Maaf, tidak ada kurir yang tersedia saat ini.");
+      router.push("/dashboard/user");
+    }
+  };
+
+  const retrySearch = () => {
+    setShowTimeoutModal(false);
+    setOverrideStartTime(new Date().toISOString());
   };
 
   const handleCancel = useCallback(() => {
@@ -114,7 +137,7 @@ export default function SearchPage() {
             onCancel={handleCancel}
             matchAfterSeconds={180} // disable internal timer, use external isMatched
             externalMatched={isMatched}
-            startTime={orderCreatedAt}
+            startTime={overrideStartTime || orderCreatedAt}
           />
         </div>
 
@@ -136,7 +159,7 @@ export default function SearchPage() {
                 <button
                   onClick={confirmCancel}
                   disabled={isCancelling}
-                  className="w-full py-4 rounded-full bg-red-500 text-white font-black text-sm hover:bg-red-600 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-4 rounded-full bg-red-500 text-white font-black text-sm hover:bg-red-600 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {isCancelling ? (
                     <Loader2 size={18} className="animate-spin" />
@@ -146,9 +169,49 @@ export default function SearchPage() {
                 </button>
                 <button
                   onClick={() => setShowCancelModal(false)}
-                  className="w-full py-4 rounded-full border border-gray-300 bg-gray-50 text-gray-500 font-bold text-sm hover:bg-gray-100 transition-all active:scale-95"
+                  className="w-full py-4 rounded-full border border-gray-300 bg-gray-50 text-gray-500 font-bold text-sm hover:bg-gray-100 transition-all active:scale-95 cursor-pointer"
                 >
                   Kembali
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Timeout Modal */}
+        {showTimeoutModal && (
+          <div className="fixed inset-0 z-150 flex items-center justify-center p-6">
+            <div
+              className="absolute inset-0 bg-dark/60 backdrop-blur-sm animate-in fade-in duration-300"
+            />
+            <div className="relative w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 fade-in duration-300 text-center">
+              <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={32} className="text-orange-500" />
+              </div>
+              <h3 className="text-xl font-black text-dark mb-2">
+                Pencarian Berakhir
+              </h3>
+              <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+                Waktu pencarian telah habis, namun belum ada kurir yang menerima pesanan Anda. Apakah Anda ingin mencoba mencari lagi?
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={retrySearch}
+                  disabled={isCancelling}
+                  className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  Coba Cari Lagi
+                </button>
+                <button
+                  onClick={cancelOrderTimeout}
+                  disabled={isCancelling}
+                  className="w-full py-4 rounded-full border border-red-300 bg-red-50 text-red-500 font-bold text-sm hover:bg-red-100 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isCancelling ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    "Batalkan Pesanan"
+                  )}
                 </button>
               </div>
             </div>

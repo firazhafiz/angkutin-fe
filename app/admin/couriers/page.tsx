@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Search, Eye, Plus, Trash2, Pencil, Truck } from "lucide-react";
 import DataTable, { type Column } from "@/components/admin/DataTable";
 import type { CourierProfile } from "@/types/models";
+import { VehicleType } from "@/types/enums";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -495,9 +496,9 @@ export default function CouriersPage() {
                 defaultValue={selectedCourier?.vehicleType}
                 className="w-full rounded-xl border border-soft-gray bg-white px-4 py-2.5 text-sm text-dark outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               >
-                <option value="MOTOR">Motor</option>
-                <option value="MOBIL_PICKUP">Mobil Pickup</option>
-                <option value="TRUK_KECIL">Truk Kecil</option>
+                <option value={VehicleType.MOTOR}>Motor</option>
+                <option value={VehicleType.PICKUP}>Mobil Pickup</option>
+                <option value={VehicleType.TRUCK}>Truk</option>
               </select>
             </div>
             <Input

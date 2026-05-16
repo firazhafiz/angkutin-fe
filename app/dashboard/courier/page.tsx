@@ -108,9 +108,21 @@ export default function CourierDashboard() {
   const incomingOrder = useMemo(
     () => {
       const available = availableOrdersData?.data || [];
-      return available.find((o: Order) => !dismissedOfferIds.includes(o.id));
+      const courierVehicle = courierProfile?.vehicleType;
+
+      return available.find((o: Order) => {
+        if (dismissedOfferIds.includes(o.id)) return false;
+
+        // Cek kendaraan AI vs kendaraan Kurir
+        const orderVehicle = o.aiResults?.[0]?.recommendedVehicle;
+        if (orderVehicle && courierVehicle && orderVehicle !== courierVehicle) {
+          return false;
+        }
+
+        return true;
+      });
     },
-    [availableOrdersData, dismissedOfferIds]
+    [availableOrdersData, dismissedOfferIds, courierProfile]
   );
 
   const activeOrder = useMemo(

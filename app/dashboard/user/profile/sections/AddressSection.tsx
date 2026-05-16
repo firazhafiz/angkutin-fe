@@ -124,7 +124,12 @@ export default function AddressSection({ onBack }: { onBack: () => void }) {
       setDeleteConfirm(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to delete address");
+      const errorMsg = error.response?.data?.message || "Failed to delete address";
+      if (errorMsg.includes("orders_address_id_fkey")) {
+        toast.error("Alamat tidak dapat dihapus karena masih digunakan pada riwayat pesanan.");
+      } else {
+        toast.error(errorMsg);
+      }
     },
   });
 
