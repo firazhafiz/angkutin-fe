@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Navigation, Phone, MessageCircle, Clock, MapPin } from "lucide-react";
-import MapView from "./MapView";
+import MapboxView, { MapboxMarker } from "./MapboxView";
 import { cn } from "@/lib/cn";
 import { OrderStatus } from "@/types/enums";
 
@@ -9,6 +9,12 @@ interface LiveTrackerProps {
   status: OrderStatus;
   courierName?: string;
   courierPlate?: string;
+  courierVehicle?: string;
+  address?: string;
+  userLat?: number;
+  userLng?: number;
+  courierLat?: number;
+  courierLng?: number;
   etaMinutes?: number;
 }
 
@@ -24,38 +30,61 @@ const statusLabels: Partial<Record<OrderStatus, string>> = {
 
 export default function LiveTracker({
   status,
-  courierName = "Ahmad Fauzi",
-  courierPlate = "L 1234 AB",
+  courierName = "Kurir",
+  courierPlate = "-",
+  courierVehicle = "Motor",
+  address = "-",
+  userLat = -7.2575,
+  userLng = 112.7521,
+  courierLat,
+  courierLng,
   etaMinutes = 8,
 }: LiveTrackerProps) {
   const [eta, setEta] = useState(etaMinutes);
 
-  // Simulate ETA countdown
-  useEffect(() => {
-    if (status !== OrderStatus.ON_GOING) return;
-    const timer = setInterval(() => {
-      setEta((e) => (e > 1 ? e - 1 : 1));
-    }, 60000); // every minute
-    return () => clearInterval(timer);
-  }, [status]);
+  // ETA is now dynamically updated by Mapbox Directions API via onRouteUpdate
 
   const showMap =
-    status === OrderStatus.ON_GOING || status === OrderStatus.DELIVERING;
+    status === OrderStatus.MATCHED || 
+    status === OrderStatus.ON_GOING || 
+    status === OrderStatus.DELIVERING ||
+    status === OrderStatus.ARRIVED;
+
+  const markers: MapboxMarker[] = [];
+
+  if (showMap) {
+    // User / Destination marker
+    markers.push({
+      id: "destination",
+      lat: userLat,
+      lng: userLng,
+      type: status === OrderStatus.DELIVERING ? "destination" : "user",
+    });
+
+    // Courier marker
+    markers.push({
+      id: "courier",
+      lat: courierLat || userLat - 0.005,
+      lng: courierLng || userLng - 0.005,
+      type: "courier",
+      isOnline: true,
+    });
+  }
 
   return (
     <div className="flex flex-col h-full">
       {/* Map Area */}
       <div className="relative h-56 sm:h-64 shrink-0">
         {showMap ? (
-          <MapView
+          <MapboxView
             className="w-full h-full"
-            showUserMarker
-            showCourierMarker
-            courierPosition={
-              status === OrderStatus.DELIVERING
-                ? { top: "25%", left: "60%" }
-                : { top: "30%", left: "55%" }
-            }
+            center={[userLng, userLat]}
+            zoom={14}
+            markers={markers}
+            showRoute={true}
+            onRouteUpdate={({ duration }) => {
+              setEta(Math.ceil(duration / 60));
+            }}
           />
         ) : (
           <div className="w-full h-full bg-gray-100 flex flex-col items-center justify-center">
@@ -73,7 +102,7 @@ export default function LiveTracker({
                 <Navigation size={28} className="animate-pulse" />
               )}
             </div>
-            <p className="text-sm font-black text-dark">
+            <p className="text-sm font-regular text-dark">
               {statusLabels[status] || "Memproses..."}
             </p>
           </div>
@@ -81,16 +110,11 @@ export default function LiveTracker({
 
         {/* ETA Badge */}
         {showMap && (
-          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-xl px-3 py-2 shadow-lg border border-gray-100 flex items-center gap-2">
-            <Clock size={14} className="text-primary" />
-            <div>
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none">
-                ETA
-              </p>
-              <p className="text-sm font-black text-dark leading-tight">
-                {eta} mnt
-              </p>
-            </div>
+          <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/50 flex items-center gap-2">
+            <Clock size={12} className="text-primary" />
+            <span className="text-[10px] font-black text-dark uppercase tracking-widest">
+              ETA {eta} mnt
+            </span>
           </div>
         )}
 
@@ -121,7 +145,7 @@ export default function LiveTracker({
                   {courierPlate}
                 </span>
                 <span className="text-[10px] font-bold text-primary">
-                  Motor
+                  {courierVehicle}
                 </span>
               </div>
             </div>
@@ -148,7 +172,7 @@ export default function LiveTracker({
             <p className="text-xs text-dark font-medium leading-relaxed">
               {status === OrderStatus.DELIVERING
                 ? "Gudang Angkutin, Jl. Rungkut Industri No. 5, Surabaya"
-                : "Manukan Yoso Dalam Blok 7i No 16, Surabaya"}
+                : address}
             </p>
           </div>
         </div>

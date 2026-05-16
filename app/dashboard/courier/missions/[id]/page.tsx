@@ -1,29 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import BottomNav from "@/components/dashboard/BottomNav";
-import MapView from "@/components/maps/MapView";
+import MapboxView from "@/components/maps/MapboxView";
+import { parseDecimal } from "@/lib/decimal";
 import IncomingAlert from "@/components/courier/IncomingAlert";
 import {
-  ChevronLeft,
-  Scale,
-  TrendingUp,
-  TrendingDown,
-  Navigation,
-  MapPin,
-  Clock,
-  Calendar,
-  Wallet,
-  QrCode,
-  CheckCircle2,
-  Truck,
-  Camera,
-  Package,
-  X,
+  ChevronLeft, Scale, TrendingUp, TrendingDown, Navigation, MapPin,
+  Clock, Calendar, Wallet, QrCode, CheckCircle2, Truck, Camera,
+  Package, Loader2, XCircle, Ban, AlertTriangle,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { OrderStatus } from "@/types/enums";
 import { cn } from "@/lib/cn";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { orderService } from "@/services/order.service";
+import { courierService } from "@/services/courier.service";
+import type { Order } from "@/types/models";
 
 const WASTE_OPTIONS = [
   { id: "plastik_pet", label: "Plastik PET" },
@@ -36,102 +29,55 @@ const WASTE_OPTIONS = [
   { id: "elektronik", label: "Elektronik" },
 ];
 
-// Statuses (removed WAITING_PAYMENT — merged into WEIGHING)
-const COURIER_STATUSES: OrderStatus[] = [
-  OrderStatus.ON_GOING,
-  OrderStatus.ARRIVED,
-  OrderStatus.WEIGHING,
-  OrderStatus.PICKED_UP,
-  OrderStatus.DELIVERING,
-  OrderStatus.COMPLETED,
-];
-
-function AnimatedCounter({
-  target,
-  suffix = "",
-  duration = 2000,
-  className,
-}: {
-  target: number;
-  suffix?: string;
-  duration?: number;
-  className?: string;
-}) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const step = target / (duration / 30);
-    const t = setInterval(() => {
-      start += step;
-      if (start >= target) {
-        setVal(target);
-        clearInterval(t);
-      } else {
-        setVal(parseFloat(start.toFixed(1)));
-      }
-    }, 30);
-    return () => clearInterval(t);
-  }, [target, duration]);
-  return (
-    <span className={className}>
-      {val.toFixed(1)}
-      {suffix}
-    </span>
-  );
-}
-
 // ─── Scheduled Wait ───
 function ScheduledWaitCourier({
-  scheduledTime,
-  onDepart,
-}: {
-  scheduledTime: string;
-  onDepart: () => void;
-}) {
+  order, onDepart, onCancel, loading
+}: { order: Order; onDepart: () => void; onCancel: () => void; loading: boolean }) {
+  const scheduledTime = order.scheduledAt
+    ? new Date(order.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+    : "—";
   return (
     <div className="p-4 space-y-4">
       <div className="text-center py-6">
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-          <Calendar size={32} className="text-primary" />
+           <Calendar size={32} className="text-primary" />
         </div>
         <h3 className="text-lg font-black text-dark">Pesanan Terjadwal</h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Tunggu hingga jam penjemputan tiba
-        </p>
+        <p className="text-xs text-gray-500 mt-1">Tunggu hingga jam penjemputan tiba</p>
       </div>
       <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20 text-center">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-          Jam Penjemputan
-        </p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Jam Penjemputan</p>
         <p className="text-3xl font-black text-primary">{scheduledTime}</p>
-        <p className="text-[10px] text-gray-500 mt-1">Hari Ini</p>
       </div>
       <div className="p-4 rounded-2xl bg-white border border-gray-100 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden shrink-0">
-            <img
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-              alt="Customer"
-              className="w-full h-full object-cover"
-            />
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black shrink-0">
+            {order.user?.name?.charAt(0) || "C"}
           </div>
           <div>
-            <p className="text-sm font-bold text-dark">Firaz Hafiz</p>
-            <p className="text-[10px] text-gray-400 font-bold">0.8 km</p>
+            <p className="text-sm font-bold text-dark">{order.user?.name || "Customer"}</p>
+            <p className="text-[10px] text-gray-400 font-bold">{order.user?.phone || "-"}</p>
           </div>
         </div>
         <div className="flex items-start gap-2">
           <MapPin size={14} className="text-primary shrink-0 mt-0.5" />
           <p className="text-xs text-gray-500 leading-relaxed">
-            Jl. Kebon Sirih No. 45, Surabaya
+            {order.address?.addressDetail || "-"}
           </p>
         </div>
+        {order.note && (
+          <div className="mt-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
+            <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-1">Catatan Customer</p>
+            <p className="text-xs text-dark font-medium italic">"{order.note}"</p>
+          </div>
+        )}
       </div>
       <button
         onClick={onDepart}
-        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-2"
+        disabled={loading}
+        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
       >
-        <Navigation size={16} className="fill-white/30" /> Berangkat Sekarang
+        {loading ? <><Loader2 size={16} className="animate-spin" /> Memproses...</> : <><Navigation size={16} className="fill-white/30" /> Berangkat Sekarang</>}
       </button>
     </div>
   );
@@ -139,23 +85,37 @@ function ScheduledWaitCourier({
 
 // ─── Navigation View ───
 function NavigationView({
-  status,
-  onArrived,
-}: {
-  status: OrderStatus;
-  onArrived: () => void;
-}) {
+  status, order, onAction, onCancel, loading,
+}: { status: OrderStatus; order: Order; onAction: () => void; onCancel?: () => void; loading: boolean }) {
   const isDel = status === OrderStatus.DELIVERING;
+  const destLat = parseDecimal(order?.address?.latitude) || -7.2575;
+  const destLng = parseDecimal(order?.address?.longitude) || 112.7521;
+  const courierLat = destLat - 0.005;
+  const courierLng = destLng - 0.005;
+
+  const [realEta, setRealEta] = useState(8);
+
   return (
     <div className="space-y-0">
-      <MapView
-        className="h-56 sm:h-64"
-        showUserMarker={!isDel}
-        showCourierMarker
-        courierPosition={
-          isDel ? { top: "30%", left: "55%" } : { top: "35%", left: "55%" }
-        }
-      />
+      <div className="h-56 sm:h-64 relative">
+        <MapboxView
+          center={isDel ? [112.7521, -7.2575] : [destLng, destLat]}
+          zoom={13}
+          showRoute={true}
+          onRouteUpdate={({ duration }) => setRealEta(Math.ceil(duration / 60))}
+          markers={[
+            { id: "courier", lat: courierLat, lng: courierLng, type: "courier" },
+            { id: "dest", lat: isDel ? -7.2575 : destLat, lng: isDel ? 112.7521 : destLng, type: "user" }
+          ]}
+        />
+        {/* Floating ETA Badge */}
+        <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/50 flex items-center gap-2">
+          <Clock size={12} className="text-primary" />
+          <span className="text-[10px] font-black text-dark uppercase tracking-widest">
+            ETA {realEta} mnt
+          </span>
+        </div>
+      </div>
       <div className="p-4 bg-white border-t border-gray-100 space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -163,90 +123,70 @@ function NavigationView({
               {isDel ? "Gudang Daur Ulang" : "Lokasi Customer"}
             </p>
             <p className="text-[10px] text-gray-400 font-medium">
-              {isDel
-                ? "Gudang Angkutin, Jl. Rungkut Industri No. 5"
-                : "Jl. Kebon Sirih No. 45, Surabaya"}
+              {isDel ? "Gudang Angkutin, Jl. Rungkut Industri No. 5" : order.address?.addressDetail || "-"}
             </p>
           </div>
-          <div className="flex items-center gap-1.5 bg-primary/10 px-3 py-1.5 rounded-full">
-            <Clock size={12} className="text-primary" />
-            <span className="text-xs font-black text-primary">8 mnt</span>
-          </div>
+          {/* Status Badge */}
+          {/* Status Badge Removed */}
         </div>
+
+        {order.note && !isDel && (
+          <div className="p-3 bg-primary/5 rounded-xl border border-primary/10 flex gap-2">
+             <Package size={14} className="text-primary shrink-0 mt-0.5" />
+             <div>
+                <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-1">Catatan Penjemputan</p>
+                <p className="text-xs text-dark font-medium italic leading-relaxed">"{order.note}"</p>
+             </div>
+          </div>
+        )}
+
         <button
-          onClick={onArrived}
-          className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer"
+          onClick={onAction}
+          disabled={loading}
+          className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {isDel
-            ? "Sampai di Gudang — Selesaikan Order"
-            : "Sampai di Lokasi Customer"}
+          {loading ? (
+            <><Loader2 size={16} className="animate-spin" /> Memproses...</>
+          ) : isDel ? "Sampai di Gudang — Selesaikan Order" : "Sampai di Lokasi Customer"}
         </button>
+
       </div>
     </div>
   );
 }
 
 // ─── Arrived ───
-function ArrivedView({ onStartWeigh }: { onStartWeigh: () => void }) {
+function ArrivedView({ onStartWeigh, onCancel, loading }: { onStartWeigh: () => void; onCancel: () => void; loading: boolean }) {
   return (
     <div className="p-4 space-y-4 text-center py-8">
       <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mx-auto">
         <Scale size={32} className="text-secondary" />
       </div>
       <div>
-        <h3 className="text-lg font-black text-dark">
-          Anda Telah Tiba di Lokasi
-        </h3>
-        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-          Silakan mulai proses penimbangan sampah customer
-        </p>
+        <h3 className="text-lg font-black text-dark">Anda Telah Tiba di Lokasi</h3>
+        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">Silakan mulai proses penimbangan sampah customer</p>
       </div>
       <button
         onClick={onStartWeigh}
-        className="w-full py-4 rounded-full bg-secondary text-white font-black text-sm hover:bg-secondary/90 transition-colors cursor-pointer"
+        disabled={loading}
+        className="w-full py-4 rounded-full bg-secondary text-white font-black text-sm hover:bg-secondary/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
       >
-        Mulai Proses Timbang
+        {loading ? <><Loader2 size={16} className="animate-spin" /> Memproses...</> : "Mulai Proses Timbang"}
       </button>
     </div>
   );
 }
 
-// ─── Weighing Form (with integrated payment if residu > mutu) ───
-function WeighingForm({ onSubmit }: { onSubmit: () => void }) {
+// ─── Weighing Form ───
+function WeighingForm({ order, onSubmit, loading }: { order: Order; onSubmit: (mutuKg: number, residuKg: number, wasteType: string) => void; loading: boolean }) {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(["plastik_pet"]);
-  const [photoTaken, setPhotoTaken] = useState(false);
-  const mutuKg = 3.2;
-  const residuKg = 4.8; // residu > mutu to demo payment
-  const needsPayment = residuKg > mutuKg;
-  const charge = needsPayment ? Math.round((residuKg - mutuKg) * 3250) : 0;
-  const [payMethod, setPayMethod] = useState<"wallet" | "qris" | null>(null);
-  const [methodSaved, setMethodSaved] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [showQR, setShowQR] = useState(false);
+  const [mutuKg, setMutuKg] = useState("3.2");
+  const [residuKg, setResiduKg] = useState("1.5");
 
-  const toggleType = (id: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
-    );
-  };
+  const toggleType = (id: string) => setSelectedTypes((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
 
-  const handleSaveMethod = () => {
-    setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
-      setMethodSaved(true);
-      if (payMethod === "qris") setShowQR(true);
-    }, 1500);
-  };
-
-  const handleSubmit = () => {
-    if (needsPayment && !methodSaved) return;
-    setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
-      onSubmit();
-    }, 2000);
-  };
+  const mutu = parseFloat(mutuKg) || 0;
+  const residu = parseFloat(residuKg) || 0;
 
   return (
     <div className="p-4 space-y-4">
@@ -255,257 +195,62 @@ function WeighingForm({ onSubmit }: { onSubmit: () => void }) {
           <Scale size={28} className="text-secondary animate-pulse" />
         </div>
         <h3 className="text-lg font-black text-dark">Proses Penimbangan</h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Data berat dari timbangan IoT (simulasi)
-        </p>
+        <p className="text-xs text-gray-500 mt-1">Masukkan berat sampah yang ditimbang</p>
       </div>
 
-      {/* Weight cards */}
+      {/* Weight inputs */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 rounded-2xl bg-green-50 border border-green-100">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={14} className="text-green-600" />
-            <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">
-              Sampah Mutu
-            </span>
+            <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">Sampah Mutu</span>
           </div>
-          <AnimatedCounter
-            target={mutuKg}
-            suffix=" kg"
-            className="text-2xl font-black text-green-700"
-          />
+          <input type="number" step="0.1" value={mutuKg} onChange={(e) => setMutuKg(e.target.value)}
+            className="w-full text-2xl font-black text-green-700 bg-transparent outline-hidden" />
+          <span className="text-xs font-bold text-green-600">kg</span>
         </div>
         <div className="p-4 rounded-2xl bg-red-50 border border-red-100">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown size={14} className="text-red-500" />
-            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">
-              Sampah Residu
-            </span>
+            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Sampah Residu</span>
           </div>
-          <AnimatedCounter
-            target={residuKg}
-            suffix=" kg"
-            className="text-2xl font-black text-red-600"
-          />
-        </div>
-      </div>
-
-      {/* Financial Breakdown for Courier */}
-      <div className="p-4 rounded-2xl bg-white border border-gray-100 space-y-2">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Estimasi Transaksi</p>
-        <div className="flex items-center justify-between py-1">
-          <span className="text-xs text-gray-500 font-medium">Pendapatan Mutu</span>
-          <span className="text-xs font-black text-green-600">+ Rp {(mutuKg * 4500).toLocaleString("id-ID")}</span>
-        </div>
-        <div className="flex items-center justify-between py-1">
-          <span className="text-xs text-gray-500 font-medium">Biaya Residu</span>
-          <span className="text-xs font-black text-red-500">- Rp {(residuKg * 3250).toLocaleString("id-ID")}</span>
-        </div>
-        <div className="pt-2 border-t border-dashed border-gray-100 flex items-center justify-between">
-          <span className="text-[10px] font-black text-dark uppercase">Total {needsPayment ? "Tagihan" : "Kredit"}</span>
-          <span className={cn("text-sm font-black", needsPayment ? "text-red-600" : "text-primary")}>
-            Rp {Math.abs(needsPayment ? charge : (mutuKg * 4500 - residuKg * 3250)).toLocaleString("id-ID")}
-          </span>
+          <input type="number" step="0.1" value={residuKg} onChange={(e) => setResiduKg(e.target.value)}
+            className="w-full text-2xl font-black text-red-600 bg-transparent outline-hidden" />
+          <span className="text-xs font-bold text-red-500">kg</span>
         </div>
       </div>
 
       {/* Multi-select waste types */}
       <div className="space-y-2 flex flex-col">
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-          Jenis Sampah Mutu
-        </label>
+        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Jenis Sampah Mutu</label>
         <div className="grid grid-cols-2 gap-2">
           {WASTE_OPTIONS.map((w) => {
             const sel = selectedTypes.includes(w.id);
             return (
-              <div
-                key={w.id}
-                onClick={() => toggleType(w.id)}
-                className={cn(
-                  "p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all",
-                  sel
-                    ? "border-primary bg-primary/5"
-                    : "border-gray-100 bg-white hover:border-primary/30",
-                )}
-              >
-                <span
-                  className={cn(
-                    "text-xs font-bold",
-                    sel ? "text-primary" : "text-gray-600",
-                  )}
-                >
-                  {w.label}
-                </span>
-                {sel && (
-                  <CheckCircle2
-                    size={14}
-                    className="text-primary ml-auto shrink-0"
-                  />
-                )}
+              <div key={w.id} onClick={() => toggleType(w.id)}
+                className={cn("p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all",
+                  sel ? "border-primary bg-primary/5" : "border-gray-100 bg-white hover:border-primary/30")}>
+                <span className={cn("text-xs font-bold", sel ? "text-primary" : "text-gray-600")}>{w.label}</span>
+                {sel && <CheckCircle2 size={14} className="text-primary ml-auto shrink-0" />}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Photo */}
-      <div className="space-y-2">
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-          Foto Bukti Residu (Opsional)
-        </label>
-        <button
-          onClick={() => setPhotoTaken(true)}
-          className={cn(
-            "w-full p-4 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 cursor-pointer transition-all",
-            photoTaken
-              ? "border-green-300 bg-green-50 text-green-600"
-              : "border-gray-200 bg-gray-50 text-gray-400 hover:border-primary/30",
-          )}
-        >
-          {photoTaken ? (
-            <>
-              <CheckCircle2 size={20} />
-              <span className="text-xs font-bold">Foto Tersimpan</span>
-            </>
-          ) : (
-            <>
-              <Camera size={20} />
-              <span className="text-xs font-bold">Ambil Foto</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Payment section (inline if residu > mutu) */}
-      {needsPayment && (
-        <div className="space-y-3 p-4 rounded-2xl bg-red-50/50 border border-red-100">
-          <div className="text-center">
-            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
-              Residu Lebih Besar — Tagihan User
-            </p>
-            <p className="text-xl font-black text-red-600 mt-1">
-              Rp {charge.toLocaleString("id-ID")}
-            </p>
-          </div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-            Pilih Metode Pembayaran
-          </p>
-          <div className="space-y-2">
-            <div
-              onClick={() => !methodSaved && setPayMethod("wallet")}
-              className={cn(
-                "p-3 rounded-xl border flex items-center gap-3 transition-all",
-                methodSaved ? "opacity-60 cursor-default" : "cursor-pointer",
-                payMethod === "wallet"
-                  ? "border-primary bg-primary/5"
-                  : "border-gray-200 bg-white hover:border-primary/30",
-              )}
-            >
-              <div
-                className={cn(
-                  "w-9 h-9 rounded-lg flex items-center justify-center",
-                  payMethod === "wallet"
-                    ? "bg-primary text-white"
-                    : "bg-gray-50 text-gray-400",
-                )}
-              >
-                <Wallet size={18} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs font-black text-dark">Saldo Wallet</p>
-                <p className="text-[9px] text-gray-400">Auto-deduct</p>
-              </div>
-              {payMethod === "wallet" && (
-                <CheckCircle2 size={16} className="text-primary" />
-              )}
-            </div>
-            <div
-              onClick={() => !methodSaved && setPayMethod("qris")}
-              className={cn(
-                "p-3 rounded-xl border flex items-center gap-3 transition-all",
-                methodSaved ? "opacity-60 cursor-default" : "cursor-pointer",
-                payMethod === "qris"
-                  ? "border-primary bg-primary/5"
-                  : "border-gray-200 bg-white hover:border-primary/30",
-              )}
-            >
-              <div
-                className={cn(
-                  "w-9 h-9 rounded-lg flex items-center justify-center",
-                  payMethod === "qris"
-                    ? "bg-primary text-white"
-                    : "bg-gray-50 text-gray-400",
-                )}
-              >
-                <QrCode size={18} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs font-black text-dark">QRIS</p>
-                <p className="text-[9px] text-gray-400">QR untuk user scan</p>
-              </div>
-              {payMethod === "qris" && (
-                <CheckCircle2 size={16} className="text-primary" />
-              )}
-            </div>
-          </div>
-
-          {payMethod && !methodSaved && (
-            <button
-              onClick={handleSaveMethod}
-              disabled={processing}
-              className="w-full py-3 rounded-full bg-primary text-white font-bold text-xs hover:bg-primary/90 transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              {processing ? "Memproses..." : "Simpan Metode"}
-            </button>
-          )}
-
-          {methodSaved && showQR && (
-            <div className="p-4 bg-white border border-gray-100 rounded-xl flex flex-col items-center space-y-2">
-              <div className="w-32 h-32 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center relative overflow-hidden">
-                <QrCode size={64} className="text-dark/20" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <p className="text-[10px] font-black text-dark/40 uppercase rotate-12">
-                    Mock QRIS
-                  </p>
-                </div>
-              </div>
-              <p className="text-[9px] font-bold text-gray-400">
-                Tunjukkan QR ke Customer
-              </p>
-            </div>
-          )}
-
-          {methodSaved && payMethod === "wallet" && (
-            <div className="p-3 bg-green-50 border border-green-100 rounded-xl flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-green-600" />
-              <p className="text-[10px] font-bold text-green-700">
-                Saldo Berhasil Dipotong Otomatis
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
       <button
-        onClick={handleSubmit}
-        disabled={processing || (needsPayment && !methodSaved)}
+        onClick={() => onSubmit(mutu, residu, selectedTypes.join(", "))}
+        disabled={loading || mutu <= 0}
         className="w-full py-4 rounded-full bg-dark text-white font-black text-sm hover:bg-primary transition-colors disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2"
       >
-        {processing ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
-            Memproses...
-          </>
-        ) : (
-          <>Submit Hasil Timbangan</>
-        )}
+        {loading ? <><Loader2 size={16} className="animate-spin" /> Memproses...</> : "Submit Hasil Timbangan"}
       </button>
     </div>
   );
 }
 
 // ─── Pickup ───
-function PickupCourierView({ onDepart }: { onDepart: () => void }) {
+function PickupCourierView({ onDepart, loading }: { onDepart: () => void; loading: boolean }) {
   return (
     <div className="p-4 text-center space-y-4 py-8">
       <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
@@ -513,23 +258,18 @@ function PickupCourierView({ onDepart }: { onDepart: () => void }) {
       </div>
       <div>
         <h3 className="text-lg font-black text-dark">Sampah Sudah Dimuat</h3>
-        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-          Pastikan semua sampah masuk kendaraan. Lanjutkan ke gudang.
-        </p>
+        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">Pastikan semua sampah masuk kendaraan. Lanjutkan ke gudang.</p>
       </div>
-      <button
-        onClick={onDepart}
-        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer flex items-center justify-center gap-2"
-      >
-        <Truck size={16} className="fill-white/30" /> Mulai Pengantaran ke
-        Gudang
+      <button onClick={onDepart} disabled={loading}
+        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2">
+        {loading ? <><Loader2 size={16} className="animate-spin" /> Memproses...</> : <><Truck size={16} className="fill-white/30" /> Mulai Pengantaran ke Gudang</>}
       </button>
     </div>
   );
 }
 
 // ─── Completed ───
-function CompletedCourierView({ onBack }: { onBack: () => void }) {
+function CompletedCourierView({ order, onBack }: { order: Order; onBack: () => void }) {
   return (
     <div className="p-4 text-center space-y-5 py-8">
       <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mx-auto">
@@ -537,22 +277,134 @@ function CompletedCourierView({ onBack }: { onBack: () => void }) {
       </div>
       <div>
         <h3 className="text-xl font-black text-dark">Order Selesai! 🎉</h3>
-        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-          Sampah telah diantar ke gudang. Pendapatan masuk ke wallet Anda.
-        </p>
+        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">Sampah telah diantar ke gudang. Pendapatan masuk ke wallet Anda.</p>
       </div>
       <div className="p-4 rounded-2xl bg-green-50 border border-green-100 text-center">
-        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">
-          Pendapatan
+        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Pendapatan</p>
+        <p className="text-2xl font-black text-green-700">
+          + Rp {(order.totalCredit ?? 0).toLocaleString("id-ID")}
         </p>
-        <p className="text-2xl font-black text-green-700">+ Rp 15.000</p>
       </div>
-      <button
-        onClick={onBack}
-        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer"
-      >
+      <button onClick={onBack}
+        className="w-full py-4 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-colors cursor-pointer">
         Kembali ke Dashboard
       </button>
+    </div>
+  );
+}
+
+// ─── Cancelled (by user) ───
+function CancelledCourierView({ order, onBack }: { order: Order; onBack: () => void }) {
+  return (
+    <div className="p-4 text-center space-y-5 py-8">
+      <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mx-auto">
+        <Ban size={40} className="text-red-400" />
+      </div>
+      <div>
+        <h3 className="text-xl font-black text-dark">Order Dibatalkan</h3>
+        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto leading-relaxed">
+          Customer telah membatalkan pesanan ini. Anda akan diarahkan ke misi lainnya.
+        </p>
+      </div>
+      <div className="p-4 rounded-2xl bg-red-50 border border-red-100 space-y-2">
+        <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Alasan Pembatalan</p>
+        <p className="text-sm font-black text-red-600">
+          "{order.statusHistory?.find(h => h.status === OrderStatus.CANCELLED)?.note || "Dibatalkan oleh pengguna"}"
+        </p>
+        <p className="text-[10px] text-gray-400">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+      </div>
+      <button onClick={onBack}
+        className="w-full py-4 rounded-full bg-dark text-white font-black text-sm hover:bg-primary transition-colors cursor-pointer">
+        Kembali ke Dashboard
+      </button>
+    </div>
+  );
+}
+
+// ─── Cancel Confirmation Modal ───
+function CancelModal({
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  onConfirm: (reason: string) => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  const reasons = [
+    "Kendaraan bermasalah",
+    "Ban bocor",
+    "Customer tidak di lokasi",
+    "Lainnya",
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end justify-center p-4 sm:items-center">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertTriangle size={20} className="text-red-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-dark">Batalkan Misi?</h3>
+            <p className="text-[10px] text-gray-400">
+              Aksi ini tidak bisa dibatalkan
+            </p>
+          </div>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            Alasan Pembatalan
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {reasons.map((r) => (
+              <button
+                key={r}
+                onClick={() => setReason(r)}
+                className={cn(
+                  "p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer",
+                  reason === r
+                    ? "border-red-300 bg-red-50 text-red-600"
+                    : "border-gray-100 text-gray-500 hover:border-red-200",
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {reason === "Lainnya" && (
+            <textarea
+              value={reason === "Lainnya" ? "" : reason}
+              onChange={(e) => setReason(e.target.value || "Lainnya")}
+              placeholder="Tulis alasan..."
+              className="w-full border border-gray-200 rounded-xl p-3 text-xs resize-none h-16 focus:outline-hidden focus:border-red-300"
+            />
+          )}
+        </div>
+        <div className="p-5 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-3 rounded-full border border-gray-200 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            Kembali
+          </button>
+          <button
+            onClick={() => onConfirm(reason || "Kendaraan bermasalah")}
+            disabled={loading || !reason}
+            className="flex-1 py-3 rounded-full bg-red-500 text-white text-sm font-black hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" /> Membatalkan...
+              </>
+            ) : (
+              "Ya, Batalkan"
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -560,42 +412,102 @@ function CompletedCourierView({ onBack }: { onBack: () => void }) {
 // ─── Main Page ───
 export default function MissionDetailPage() {
   const router = useRouter();
-  const [statusIdx, setStatusIdx] = useState(-1); // -1 = incoming alert
-  const [isScheduled, setIsScheduled] = useState(false);
+  const params = useParams();
+  const orderId = params.id as string;
+  const queryClient = useQueryClient();
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const currentStatus = statusIdx >= 0 ? COURIER_STATUSES[statusIdx] : null;
-  const nextStatus = () => {
-    if (statusIdx < COURIER_STATUSES.length - 1) setStatusIdx(statusIdx + 1);
+  // Fetch order with polling
+  const { data: orderRes, isLoading } = useQuery({
+    queryKey: ["courierMission", orderId],
+    queryFn: () => orderService.getOrderById(orderId),
+    enabled: !!orderId,
+    refetchInterval: 5000,
+  });
+
+  const order = orderRes?.data as Order | null;
+  const status = order?.status;
+  const isScheduled = order?.scheduleType === "SCHEDULED";
+
+  const refetchOrder = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["courierMission", orderId] });
+  }, [queryClient, orderId]);
+
+  // Generic action handler
+  const handleAction = useCallback(async (action: () => Promise<any>) => {
+    setActionLoading(true);
+    setError(null);
+    try {
+      await action();
+      refetchOrder();
+    } catch (err: any) {
+      console.error("Action failed:", err);
+      setError(err.response?.data?.message || "Gagal memproses. Coba lagi.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [refetchOrder]);
+
+  const showIncoming = status === OrderStatus.CREATED;
+  // Scheduled: MATCHED means waiting for departure. Instant: MATCHED is transient (BE sets ON_GOING on accept)
+  const showScheduledWait = isScheduled && status === OrderStatus.MATCHED;
+  const showInstantMatched = !isScheduled && status === OrderStatus.MATCHED;
+  const showCompleted = status === OrderStatus.COMPLETED;
+  const showCancelled = status === OrderStatus.CANCELLED;
+
+  const statusLabel = !status ? "..." :
+    showCancelled ? "Dibatalkan" :
+    showIncoming ? "Penawaran" :
+    showScheduledWait ? "Terjadwal" :
+    status === OrderStatus.WEIGHING ? "Timbang" :
+    showCompleted ? "Selesai" : "";
+
+  // Courier can cancel only in MATCHED status per current BE constraints
+  const canCancel = status === OrderStatus.MATCHED;
+
+  const handleCourierCancel = async (reason: string) => {
+    handleAction(async () => {
+      await courierService.rejectOrder(orderId, reason);
+      setShowCancelModal(false);
+      router.push("/dashboard/courier");
+    });
   };
 
-  const showIncoming = statusIdx === -1;
-  const showScheduledWait =
-    isScheduled && currentStatus === OrderStatus.ON_GOING && statusIdx === 0;
+  if (isLoading) {
+    return (
+      <div className="min-h-dvh bg-dark flex items-center justify-center">
+        <Loader2 size={32} className="text-primary animate-spin" />
+      </div>
+    );
+  }
 
-  const statusLabel = !currentStatus
-    ? "Penawaran"
-    : showScheduledWait
-      ? "Terjadwal"
-      : currentStatus === OrderStatus.WEIGHING
-        ? "Timbang"
-        : currentStatus === OrderStatus.COMPLETED
-          ? "Selesai"
-          : "Aktif";
+  if (!order) {
+    return (
+      <div className="min-h-dvh bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <XCircle size={32} className="text-red-400 mx-auto mb-3" />
+          <p className="text-sm text-gray-400">Order tidak ditemukan</p>
+          <button onClick={() => router.push("/dashboard/courier")}
+            className="mt-4 text-xs font-bold text-primary hover:underline">Kembali</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-dark flex items-stretch justify-center">
       {/* Incoming Alert overlay */}
       {showIncoming && (
         <IncomingAlert
-          customerName="Firaz Hafiz"
-          address="Jl. Kebon Sirih No. 45, Surabaya"
-          distance="0.8 km"
-          estimatedEarning="+ Rp 15.000"
-          vehicleType="Motor"
+          customerName={order.user?.name || "Customer"}
+          address={order.address?.addressDetail || "-"}
+          vehicleType={order.courier?.vehicleType || order.aiResults?.[0]?.recommendedVehicle || "Motor"}
           isScheduled={isScheduled}
-          scheduledTime={isScheduled ? "14:00" : undefined}
-          onAccept={() => setStatusIdx(0)}
-          onReject={() => router.push("/dashboard/courier")}
+          scheduledTime={order.scheduledAt ? new Date(order.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : undefined}
+          onAccept={() => handleAction(() => courierService.acceptOrder(orderId))}
+          onDismiss={() => router.push("/dashboard/courier")}
         />
       )}
 
@@ -603,28 +515,38 @@ export default function MissionDetailPage() {
         {/* Header */}
         {!showIncoming && (
           <div className="bg-white px-4 py-3 flex items-center gap-3 sticky top-0 z-30 border-b border-gray-100">
-            <button
-              onClick={() => router.push("/dashboard/courier")}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer shrink-0"
-            >
+            <button onClick={() => router.push("/dashboard/courier")}
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer shrink-0">
               <ChevronLeft size={20} />
             </button>
             <div className="flex-1">
               <h1 className="text-sm font-black text-dark">Detail Misi</h1>
-              <p className="text-[10px] text-gray-400 font-bold">#AGT-55291</p>
+              <p className="text-[10px] text-gray-400 font-bold">#{orderId.slice(0, 8).toUpperCase()}</p>
             </div>
-            <div
-              className={cn(
-                "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                currentStatus === OrderStatus.COMPLETED
-                  ? "bg-secondary/10 text-secondary"
-                  : currentStatus === OrderStatus.WEIGHING
-                    ? "bg-orange-50 text-orange-500"
-                    : "bg-primary/10 text-primary",
-              )}
-            >
-              {statusLabel}
-            </div>
+            {statusLabel ? (
+              <div className={cn("px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                showCancelled ? "bg-red-50 text-red-500" :
+                showCompleted ? "bg-secondary/10 text-secondary" :
+                status === OrderStatus.WEIGHING ? "bg-orange-50 text-orange-500" :
+                "bg-primary/10 text-primary")}>
+                {statusLabel}
+              </div>
+            ) : canCancel ? (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                disabled={actionLoading}
+                className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:underline cursor-pointer disabled:opacity-50"
+              >
+                Batalkan
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {error && !showIncoming && (
+          <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-bold flex items-center gap-2">
+            <XCircle size={14} /> {error}
           </div>
         )}
 
@@ -632,64 +554,66 @@ export default function MissionDetailPage() {
         {!showIncoming && (
           <div className="flex-1 flex flex-col pb-20 overflow-y-auto">
             {showScheduledWait && (
-              <ScheduledWaitCourier
-                scheduledTime="14:00"
-                onDepart={nextStatus}
-              />
+              <ScheduledWaitCourier order={order} loading={actionLoading}
+                onDepart={() => handleAction(() => courierService.departOrder(orderId))}
+                onCancel={() => setShowCancelModal(true)} />
             )}
 
-            {!showScheduledWait && currentStatus === OrderStatus.ON_GOING && (
-              <NavigationView
-                status={OrderStatus.ON_GOING}
-                onArrived={nextStatus}
-              />
+            {showInstantMatched && (
+              <NavigationView status={OrderStatus.ON_GOING} order={order} loading={actionLoading}
+                onAction={() => handleAction(() => courierService.arriveAtLocation(orderId))}
+                onCancel={() => setShowCancelModal(true)} />
             )}
 
-            {currentStatus === OrderStatus.ARRIVED && (
-              <ArrivedView onStartWeigh={nextStatus} />
+            {status === OrderStatus.ON_GOING && (
+              <NavigationView status={OrderStatus.ON_GOING} order={order} loading={actionLoading}
+                onAction={() => handleAction(() => courierService.arriveAtLocation(orderId))}
+                onCancel={() => setShowCancelModal(true)} />
             )}
 
-            {currentStatus === OrderStatus.WEIGHING && (
-              <WeighingForm onSubmit={nextStatus} />
+            {status === OrderStatus.ARRIVED && (
+              <ArrivedView loading={actionLoading}
+                onStartWeigh={() => handleAction(() => courierService.startWeighing(orderId))}
+                onCancel={() => setShowCancelModal(true)} />
             )}
 
-            {currentStatus === OrderStatus.PICKED_UP && (
-              <PickupCourierView onDepart={nextStatus} />
+            {status === OrderStatus.WEIGHING && (
+              <WeighingForm order={order} loading={actionLoading}
+                onSubmit={(mutu, residu, wasteType) =>
+                  handleAction(() => courierService.submitWeighing(orderId, { mutuKg: mutu, residuKg: residu, wasteType }))} />
             )}
 
-            {currentStatus === OrderStatus.DELIVERING && (
-              <NavigationView
-                status={OrderStatus.DELIVERING}
-                onArrived={nextStatus}
-              />
+            {(status === OrderStatus.WAITING_PAYMENT || status === OrderStatus.PICKED_UP) && (
+              <PickupCourierView loading={actionLoading}
+                onDepart={() => handleAction(() => courierService.startDelivery(orderId))} />
             )}
 
-            {currentStatus === OrderStatus.COMPLETED && (
-              <CompletedCourierView
-                onBack={() => router.push("/dashboard/courier")}
-              />
+            {status === OrderStatus.DELIVERING && (
+              <NavigationView status={OrderStatus.DELIVERING} order={order} loading={actionLoading}
+                onAction={() => handleAction(() => courierService.completeOrder(orderId))} />
             )}
 
-            {/* Demo toggle */}
-            <div className="px-4 mt-4">
-              <button
-                onClick={() => setIsScheduled(!isScheduled)}
-                className={cn(
-                  "w-full py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer border",
-                  isScheduled
-                    ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-gray-50 text-gray-400 border-gray-200",
-                )}
-              >
-                {isScheduled ? "📅 Mode: Terjadwal" : "⚡ Mode: Instan"} (Tap
-                toggle)
-              </button>
-            </div>
+            {showCompleted && (
+              <CompletedCourierView order={order} onBack={() => router.push("/dashboard/courier")} />
+            )}
+
+            {showCancelled && (
+              <CancelledCourierView order={order} onBack={() => router.push("/dashboard/courier")} />
+            )}
           </div>
         )}
 
         {!showIncoming && <BottomNav role="courier" />}
       </div>
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <CancelModal
+          onConfirm={handleCourierCancel}
+          onClose={() => setShowCancelModal(false)}
+          loading={actionLoading}
+        />
+      )}
     </div>
   );
 }

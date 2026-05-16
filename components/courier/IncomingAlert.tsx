@@ -1,61 +1,72 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
-import {
-  MapPin,
-  Clock,
-  X,
-  Truck,
-  Calendar,
-  Navigation,
-  Volume2,
-} from "lucide-react";
+import { MapPin, Truck, Volume2, Calendar, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface IncomingAlertProps {
   customerName: string;
   address: string;
-  distance: string;
-  estimatedEarning: string;
   vehicleType: string;
   isScheduled?: boolean;
   scheduledTime?: string;
+  note?: string;
   timeoutSeconds?: number;
-  onAccept: () => void;
-  onReject: () => void;
+  onAccept: () => Promise<void> | void;
+  onDismiss: () => void;
 }
 
 export default function IncomingAlert({
   customerName,
   address,
-  distance,
-  estimatedEarning,
   vehicleType,
-  isScheduled = false,
+  isScheduled,
   scheduledTime,
+  note,
   timeoutSeconds = 30,
   onAccept,
-  onReject,
+  onDismiss,
 }: IncomingAlertProps) {
   const [secondsLeft, setSecondsLeft] = useState(timeoutSeconds);
+  const [isAccepting, setIsAccepting] = useState(false);
   const progress = (secondsLeft / timeoutSeconds) * 100;
 
+  // Timer logic
   useEffect(() => {
     const timer = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(timer);
-          onReject(); // Auto-reject on timeout
-          return 0;
-        }
-        return s - 1;
-      });
+      setSecondsLeft((s) => Math.max(0, s - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [onReject]);
+  }, []);
+
+  // Auto-dismiss on timeout
+  useEffect(() => {
+    if (secondsLeft === 0 && !isAccepting) {
+      onDismiss();
+    }
+  }, [secondsLeft, onDismiss, isAccepting]);
+
+  const handleAccept = async () => {
+    setIsAccepting(true);
+    try {
+      await onAccept();
+    } catch (err) {
+      console.error("Accept failed:", err);
+      setIsAccepting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-100 bg-dark/95 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6 animate-in fade-in zoom-in-95 duration-300">
+      <div className="w-full max-w-md space-y-6 animate-in fade-in zoom-in-95 duration-300 relative">
+        {/* Close Button (Skip) */}
+        <button
+          onClick={onDismiss}
+          className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors z-20 cursor-pointer"
+        >
+          <X size={20} />
+        </button>
+
         {/* Sound icon */}
         <div className="flex justify-center">
           <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center animate-pulse">
@@ -65,17 +76,24 @@ export default function IncomingAlert({
 
         {/* Title */}
         <div className="text-center">
+          <div className="flex justify-center mb-2">
+            <span
+              className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${isScheduled ? "bg-secondary/20 text-secondary border-secondary/30" : "bg-primary/20 text-primary border-primary/30"}`}
+            >
+              {isScheduled ? "Terjadwal" : "Instan"}
+            </span>
+          </div>
           <h2 className="text-2xl font-black text-white mb-1">
             Ada Orderan Baru! 🎉
           </h2>
-          <p className="text-xs text-gray-400">
-            {isScheduled ? "Pesanan Terjadwal" : "Pesanan Instan"}
+          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+            Klik terima sebelum diambil kurir lain
           </p>
         </div>
 
         {/* Countdown ring */}
         <div className="flex justify-center">
-          <div className="relative w-20 h-20">
+          <div className="relative w-16 h-16">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
               <circle
                 cx="18"
@@ -100,7 +118,7 @@ export default function IncomingAlert({
             <div className="absolute inset-0 flex items-center justify-center">
               <span
                 className={cn(
-                  "text-xl font-black tabular-nums",
+                  "text-lg font-black tabular-nums",
                   secondsLeft <= 10 ? "text-red-400" : "text-white",
                 )}
               >
@@ -124,7 +142,7 @@ export default function IncomingAlert({
             <div className="flex-1">
               <p className="text-sm font-black text-white">{customerName}</p>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                Customer • {distance}
+                Customer
               </p>
             </div>
           </div>
@@ -136,43 +154,55 @@ export default function IncomingAlert({
           </div>
 
           {/* Details row */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1.5 rounded-lg">
-              <Truck size={12} className="text-primary" />
-              <span className="text-[10px] font-bold text-white">
-                {vehicleType}
-              </span>
-            </div>
-            {isScheduled && scheduledTime && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1.5 rounded-lg">
-                <Calendar size={12} className="text-primary" />
+                <Truck size={12} className="text-primary" />
                 <span className="text-[10px] font-bold text-white">
-                  Jadwal: {scheduledTime}
+                  {vehicleType}
                 </span>
               </div>
-            )}
-            <div className="flex items-center gap-1.5 bg-secondary/20 px-2.5 py-1.5 rounded-lg ml-auto">
-              <span className="text-[10px] font-black text-secondary">
-                {estimatedEarning}
-              </span>
             </div>
+
+            {note && (
+              <div className="w-full bg-white/5 px-3 py-2 rounded-lg border border-white/10">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  Catatan
+                </p>
+                <p className="text-xs text-white italic">"{note}"</p>
+              </div>
+            )}
+
+            {isScheduled && scheduledTime && (
+              <div className="flex items-start gap-4 p-4 rounded-3xl bg-secondary/5 border border-secondary/10">
+                <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm shrink-0">
+                  <Calendar size={20} className="text-secondary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    Jam Penjemputan
+                  </p>
+                  <p className="text-sm font-black text-secondary">
+                    {scheduledTime}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Buttons */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="w-full">
           <button
-            onClick={onReject}
-            className="col-span-2 py-4 rounded-full border border-white/20 text-white font-black text-sm hover:bg-white/10 transition-colors cursor-pointer"
+            onClick={handleAccept}
+            disabled={isAccepting}
+            className="w-full py-5 rounded-full bg-primary text-white font-black text-sm hover:bg-primary/90 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
-            Lewati
-          </button>
-          <button
-            onClick={onAccept}
-            className="col-span-3 py-4 rounded-full bg-secondary text-white font-black text-sm hover:bg-secondary/90 transition-colors cursor-pointer shadow-lg shadow-secondary/30 flex items-center justify-center gap-2"
-          >
-            <Navigation size={16} className="fill-white/30" />
-            Terima Order
+            {isAccepting ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              "Terima Order"
+            )}
           </button>
         </div>
       </div>

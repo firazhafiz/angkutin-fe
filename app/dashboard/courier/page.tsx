@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
@@ -9,27 +9,48 @@ import MissionCard from "@/components/courier/MissionCard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
 import { courierService } from "@/services/courier.service";
+import MapboxView from "@/components/maps/MapboxView";
 import {
   CheckCircle2,
   TrendingUp,
   History as HistoryIcon,
   Navigation,
   BookOpen,
-  HelpCircle,
   MapPin,
   Clock,
   ArrowRight,
-  ShieldCheck,
   Zap,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { OrderStatus } from "@/types/enums";
+import type { Order } from "@/types/models";
+
+// Active order statuses (already accepted)
+const ACTIVE_STATUSES: OrderStatus[] = [
+  OrderStatus.MATCHED,
+  OrderStatus.ON_GOING,
+  OrderStatus.ARRIVED,
+  OrderStatus.WEIGHING,
+  OrderStatus.WAITING_PAYMENT,
+  OrderStatus.PICKED_UP,
+  OrderStatus.DELIVERING,
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  [OrderStatus.MATCHED]: "Menunggu Berangkat",
+  [OrderStatus.ON_GOING]: "Menuju Lokasi",
+  [OrderStatus.ARRIVED]: "Tiba di Lokasi",
+  [OrderStatus.WEIGHING]: "Penimbangan",
+  [OrderStatus.WAITING_PAYMENT]: "Menunggu Bayar",
+  [OrderStatus.PICKED_UP]: "Diangkut",
+  [OrderStatus.DELIVERING]: "Mengantar",
+};
 
 export default function CourierDashboard() {
   const queryClient = useQueryClient();
-  const [showIncoming, setShowIncoming] = useState(false);
-  const [hasActiveOrder, setHasActiveOrder] = useState(true);
+  const [dismissedOfferIds, setDismissedOfferIds] = useState<string[]>([]);
+  const [acceptedOfferIds, setAcceptedOfferIds] = useState<string[]>([]);
 
   // Fetch Courier Profile
   const { data: courierProfileData, isLoading: isProfileLoading } = useQuery({
@@ -62,37 +83,77 @@ export default function CourierDashboard() {
     queryFn: walletService.getTransactions,
   });
 
+  // Fetch courier's active/assigned orders
+  const { data: ordersData } = useQuery({
+    queryKey: ["courierOrders"],
+    queryFn: () => courierService.getMyOrders(),
+    refetchInterval: 3000,
+    enabled: isOnline,
+  });
+
+  // Fetch available orders for broadcast matching
+  const { data: availableOrdersData } = useQuery({
+    queryKey: ["availableOrders"],
+    queryFn: () => courierService.getAvailableOrders(),
+    refetchInterval: 3000,
+    enabled: isOnline,
+  });
+
   const walletBalance = walletData?.data?.balance || 0;
 
-  // Filter and limit transactions for the dashboard
-  const transactions = (txData?.data || [])
-    .filter((tx) => ["SUCCESS"].includes(tx.status))
-    .slice(0, 5);
+  // Find active order from BE
+  const allOrders: Order[] = ordersData?.data || [];
+  
+  // Incoming order: from available broadcast (status CREATED)
+  const incomingOrder = useMemo(
+    () => {
+      const available = availableOrdersData?.data || [];
+      return available.find((o: Order) => !dismissedOfferIds.includes(o.id));
+    },
+    [availableOrdersData, dismissedOfferIds]
+  );
 
-  const formatDateShort = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  const activeOrder = useMemo(
+    () => allOrders.find((o: Order) => ACTIVE_STATUSES.includes(o.status)),
+    [allOrders],
+  );
+
+  const hasActiveOrder = !!activeOrder;
+  const completedOrders = allOrders.filter(
+    (o: Order) => o.status === OrderStatus.COMPLETED,
+  );
+  // History: completed + cancelled, sorted newest first
+  const historyOrders = allOrders
+    .filter((o: Order) => o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <DashboardLayout role="courier">
       {/* IncomingAlert Overlay */}
-      {showIncoming && (
+      {incomingOrder && (
         <IncomingAlert
-          customerName="Firaz Hafiz"
-          address="Jl. Kebon Sirih No. 45, Surabaya"
-          distance="0.8 km"
-          estimatedEarning="+ Rp 15.000"
-          vehicleType="Motor"
-          onAccept={() => {
-            setShowIncoming(false);
-            setHasActiveOrder(true);
-            window.location.href = "/dashboard/courier/missions/mock-order-123";
+          customerName={incomingOrder.user?.name || "Customer"}
+          address={incomingOrder.address?.addressDetail || "-"}
+          vehicleType={incomingOrder.courier?.vehicleType || incomingOrder.aiResults?.[0]?.recommendedVehicle || "Motor"}
+          isScheduled={incomingOrder.scheduleType === "SCHEDULED"}
+          scheduledTime={incomingOrder.scheduledAt ? new Date(incomingOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : undefined}
+          note={incomingOrder.note || undefined}
+          onAccept={async () => {
+            if (!incomingOrder) return;
+            const orderId = incomingOrder.id;
+            try {
+              await courierService.acceptOrder(orderId);
+              queryClient.invalidateQueries({ queryKey: ["courierOrders"] });
+              queryClient.invalidateQueries({ queryKey: ["availableOrders"] });
+              window.location.href = `/dashboard/courier/missions/${orderId}`;
+            } catch (err) {
+              console.error("Accept failed:", err);
+            }
           }}
-          onReject={() => setShowIncoming(false)}
+          onDismiss={() => {
+            if (!incomingOrder) return;
+            setDismissedOfferIds((prev) => [...prev, incomingOrder.id]);
+          }}
         />
       )}
 
@@ -129,7 +190,8 @@ export default function CourierDashboard() {
               className={cn(
                 "relative inline-flex h-11 w-20 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner shrink-0",
                 isOnline ? "bg-primary" : "bg-gray-300",
-                (statusMutation.isPending || isProfileLoading) && "opacity-50 cursor-not-allowed"
+                (statusMutation.isPending || isProfileLoading) &&
+                  "opacity-50 cursor-not-allowed",
               )}
             >
               <div
@@ -139,10 +201,7 @@ export default function CourierDashboard() {
                 )}
               >
                 {statusMutation.isPending || isProfileLoading ? (
-                  <Loader2
-                    size={14}
-                    className="animate-spin text-gray-400"
-                  />
+                  <Loader2 size={14} className="animate-spin text-gray-400" />
                 ) : (
                   <Zap
                     size={14}
@@ -158,17 +217,22 @@ export default function CourierDashboard() {
         </div>
 
         {/* Mobile: Active Order Card (above everything) */}
-        {hasActiveOrder && (
+        {activeOrder && (
           <div className="md:hidden">
             <MissionCard
-              orderId="#AGT-55291"
-              customerName="Firaz Hafiz"
-              address="Jl. Kebon Sirih No. 45, Surabaya"
-              status={OrderStatus.ON_GOING}
-              distance="0.8 km"
+              orderId={`#${activeOrder.id.slice(0, 8).toUpperCase()}`}
+              customerName={activeOrder.user?.name || "User"}
+              address={
+                activeOrder.address?.addressDetail ||
+                [activeOrder.address?.village, activeOrder.address?.district]
+                  .filter(Boolean)
+                  .join(", ") ||
+                "-"
+              }
+              status={activeOrder.status}
+              distance="-"
               onClick={() =>
-                (window.location.href =
-                  "/dashboard/courier/missions/mock-order-123")
+                (window.location.href = `/dashboard/courier/missions/${activeOrder.id}`)
               }
             />
           </div>
@@ -203,53 +267,64 @@ export default function CourierDashboard() {
                       <div className="space-y-4">
                         <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                           <div className="flex items-center gap-4 pb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center shrink-0 overflow-hidden">
-                              <img
-                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-                                alt="User"
-                                className="w-full h-full object-cover"
-                              />
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg shrink-0">
+                              {activeOrder?.user?.name?.charAt(0) || "U"}
                             </div>
                             <div>
                               <p className="text-base font-extrabold text-dark tracking-tight">
-                                Firaz Hafiz
+                                {activeOrder?.user?.name || "User"}
                               </p>
                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                                Customer • 0.8 km
+                                {STATUS_LABELS[activeOrder?.status || ""] ||
+                                  "Aktif"}
                               </p>
                             </div>
                           </div>
 
-                          <div className="space-y-4 ">
+                          <div className="space-y-4">
                             <div className="flex items-start gap-3">
                               <MapPin
                                 size={20}
                                 className="text-primary mt-0.5"
                               />
                               <p className="text-sm font-medium text-slate-600 leading-relaxed">
-                                Jl. Kebon Sirih No. 45, Surabaya
+                                {activeOrder?.address?.addressDetail ||
+                                  [
+                                    activeOrder?.address?.village,
+                                    activeOrder?.address?.district,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(", ") ||
+                                  "-"}
                               </p>
                             </div>
                           </div>
                         </div>
 
-                        {/* Map preview */}
-                        <div className="relative h-48 w-full rounded-xl overflow-hidden border border-primary/10 bg-gray-200 shadow-inner">
-                          <div className="absolute inset-0 bg-gray-100">
-                            <div className="absolute inset-0 bg-linear-to-t from-primary/20 to-transparent" />
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center animate-ping absolute" />
-                              <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center relative shadow-lg border-2 border-white">
-                                <MapPin size={14} />
-                              </div>
-                            </div>
-                          </div>
+                        {/* Map Preview */}
+                        <div className="h-48 w-full rounded-xl overflow-hidden border border-primary/10 shadow-inner">
+                          <MapboxView
+                            className="w-full h-full"
+                            center={[
+                              activeOrder?.address?.longitude ? Number(activeOrder.address.longitude) : 112.7521,
+                              activeOrder?.address?.latitude ? Number(activeOrder.address.latitude) : -7.2575
+                            ]}
+                            zoom={13}
+                            interactive={false}
+                            markers={[
+                              {
+                                id: "destination",
+                                lat: activeOrder?.address?.latitude ? Number(activeOrder.address.latitude) : -7.2575,
+                                lng: activeOrder?.address?.longitude ? Number(activeOrder.address.longitude) : 112.7521,
+                                type: "user"
+                              }
+                            ]}
+                          />
                         </div>
 
                         <button
                           onClick={() =>
-                            (window.location.href =
-                              "/dashboard/courier/missions/mock-order-123")
+                            (window.location.href = `/dashboard/courier/missions/${activeOrder?.id}`)
                           }
                           className="w-full py-4 rounded-full bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-all active:scale-95"
                         >
@@ -269,12 +344,6 @@ export default function CourierDashboard() {
                             GPS Anda terdeteksi di Surabaya
                           </p>
                         </div>
-                        <button
-                          onClick={() => setShowIncoming(true)}
-                          className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors cursor-pointer"
-                        >
-                          Demo: Simulasi Order Masuk
-                        </button>
                       </div>
                     )}
                   </>
@@ -306,12 +375,6 @@ export default function CourierDashboard() {
                   <p className="text-[10px] text-gray-400">
                     GPS Anda terdeteksi di Surabaya
                   </p>
-                  <button
-                    onClick={() => setShowIncoming(true)}
-                    className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors cursor-pointer"
-                  >
-                    Demo: Simulasi Order Masuk
-                  </button>
                 </>
               ) : (
                 <>
@@ -328,37 +391,38 @@ export default function CourierDashboard() {
 
           {/* Col 2–3: Wallet + Stats + History + Tips */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Wallet — full width of the right area */}
             <WalletCard
               balance={walletBalance}
               isLoading={isWalletLoading}
               showOrderButton={false}
               showWithdrawButton={true}
-              onWithdraw={() => (window.location.href = "/dashboard/courier/wallet")}
+              onWithdraw={() =>
+                (window.location.href = "/dashboard/courier/wallet")
+              }
             />
 
-            {/* Bottom Sub-Grid: Stats+Tips | Accounts | History */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left: Stats cards + Tips */}
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <StatCard
                     label="Order Selesai"
-                    value="156"
+                    value={String(completedOrders.length)}
                     icon={CheckCircle2}
-                    trend="+12"
+                    trend={
+                      completedOrders.length > 0
+                        ? `+${Math.min(completedOrders.length, 12)}`
+                        : "0"
+                    }
                     iconClassName="bg-green-50 text-green-600"
                   />
                   <StatCard
-                    label="Total Pendapatan"
-                    value="Rp 2.4jt"
+                    label="Total Order"
+                    value={String(allOrders.length)}
                     icon={TrendingUp}
-                    trend="+15%"
                     iconClassName="bg-primary/10 text-primary"
                   />
                 </div>
 
-                {/* Daily Tips */}
                 <div className="bg-dark rounded-xl p-6 md:pb-14 text-white relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
                     <BookOpen size={60} />
@@ -383,9 +447,8 @@ export default function CourierDashboard() {
                 </div>
               </div>
 
-              {/* Right: History */}
               <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm flex flex-col h-full max-h-[400px]">
-                <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+                <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
                   <div className="flex items-center gap-2">
                     <HistoryIcon size={18} className="text-dark" />
                     <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">
@@ -399,30 +462,47 @@ export default function CourierDashboard() {
                     Detail
                   </button>
                 </div>
-                <div className="divide-y divide-gray-50 overflow-y-auto">
-                  {[1, 2, 3, 4, 5].map((_, i) => (
-                    <div
-                      key={i}
-                      className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-black text-dark">
-                          Order #TRX-{1024 + i}
-                        </span>
-                        <span className="text-[10px] font-bold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">
-                          Selesai
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
-                        <Clock size={12} />
-                        <span>06 Mei 2026, 08:{10 + i}</span>
-                        <span className="mx-1">•</span>
-                        <span className="text-dark font-bold">
-                          Rp {15000 + i * 2500}
-                        </span>
-                      </div>
+                <div className="divide-y divide-gray-50 overflow-y-auto flex-1 scrollbar-hide">
+                  {historyOrders.length > 0 ? (
+                    historyOrders.map((order) => {
+                      const isCancelled = order.status === OrderStatus.CANCELLED;
+                      return (
+                        <div
+                          key={order.id}
+                          className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
+                          onClick={() => (window.location.href = `/dashboard/courier/missions/${order.id}`)}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-black text-dark">
+                              #{order.id.slice(0, 8).toUpperCase()}
+                            </span>
+                            <span className={cn(
+                              "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                              isCancelled ? "text-red-500 bg-red-50" : "text-green-500 bg-green-50"
+                            )}>
+                              {isCancelled ? "Dibatalkan" : "Selesai"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
+                            <Clock size={12} />
+                            <span>{new Date(order.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            <span className="mx-1">•</span>
+                            <span className="text-dark font-bold">{order.user?.name || "Customer"}</span>
+                          </div>
+                          {order.address && (
+                            <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-1">
+                              <MapPin size={10} className="shrink-0" />
+                              <span className="truncate">{order.address.addressDetail}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-8 text-center">
+                      <p className="text-[10px] font-bold text-gray-400">Belum ada riwayat</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

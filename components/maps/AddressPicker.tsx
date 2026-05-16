@@ -8,13 +8,23 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { UserAddress } from "@/services/user.service";
 import { cn } from "@/lib/cn";
 
+/** Generic address shape — works with both full BE Address and simplified wizard address */
+export interface AddressItem {
+  id: string;
+  userId: string;
+  label: string;
+  district?: string;
+  village?: string;
+  addressDetail: string;
+  isPrimary: boolean;
+}
+
 interface AddressPickerProps {
-  selected?: UserAddress;
-  onSelect: (address: UserAddress) => void;
-  addresses: UserAddress[];
+  selected?: AddressItem;
+  onSelect: (address: AddressItem) => void;
+  addresses: AddressItem[];
 }
 
 const getIconForLabel = (label: string) => {

@@ -80,13 +80,7 @@ export default function OrderTimeline({
   const currentIndex = STATUS_ORDER.indexOf(currentStatus);
 
   // Mock timestamps for UI
-  const mockTimestamps: Partial<Record<OrderStatus, string>> = {
-    [OrderStatus.CREATED]: "09:30",
-    [OrderStatus.MATCHED]: "09:32",
-    [OrderStatus.ON_GOING]: "09:33",
-    [OrderStatus.ARRIVED]: "09:41",
-    ...timestamps,
-  };
+  const displayTimestamps: Partial<Record<OrderStatus, string>> = timestamps;
 
   const steps = cancelled
     ? [
@@ -156,9 +150,9 @@ export default function OrderTimeline({
               >
                 {step.label}
               </p>
-              {mockTimestamps[step.status] && (isPast || isCurrent) && (
+              {displayTimestamps[step.status] && (isPast || isCurrent) && (
                 <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                  {mockTimestamps[step.status]}
+                  {displayTimestamps[step.status]}
                 </p>
               )}
               {isCurrent && !isCancelled && (

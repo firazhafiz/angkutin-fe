@@ -61,7 +61,7 @@ export default function VolumeEstimate({
             Akurasi AI
           </p>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-black text-dark">{confidence}</span>
+            <span className="text-3xl font-black text-dark">{confidence.toFixed(1)}</span>
             <span className="text-sm font-bold text-gray-500">%</span>
           </div>
         </div>

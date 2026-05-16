@@ -6,6 +6,8 @@ import StatsCard from '@/components/admin/StatsCard';
 import { cn } from '@/lib/cn';
 import { useQuery } from '@tanstack/react-query';
 import { adminService } from '@/services/admin.service';
+import MapboxView, { MapboxMarker } from '@/components/maps/MapboxView';
+import { parseDecimal } from '@/lib/decimal';
 
 const statusColors: Record<string, string> = {
   idle: 'bg-soft-gray text-gray-500',
@@ -50,12 +52,14 @@ export default function FleetPage() {
   // Merge location data into courier profiles
   const fleetList = courierProfiles.map(courier => {
     const loc = locations.find(l => l.courierId === courier.id);
+    const currentLat = loc ? parseDecimal(loc.currentLat) : null;
+    const currentLng = loc ? parseDecimal(loc.currentLng) : null;
     return {
       courierId: courier.id,
       name: courier.name,
       isOnline: loc ? loc.isOnline : courier.isOnline, // Use real-time if available, else profile
-      currentLat: loc?.currentLat || null,
-      currentLng: loc?.currentLng || null,
+      currentLat,
+      currentLng,
       currentOrderId: loc?.currentOrderId || null,
     };
   });
@@ -63,6 +67,17 @@ export default function FleetPage() {
   const onlineCouriers = fleetList.filter((c) => c.isOnline).length;
   const offlineCouriers = fleetList.filter((c) => !c.isOnline).length;
   const totalCouriers = fleetList.length;
+
+  const markers: MapboxMarker[] = fleetList
+    .filter((c) => c.currentLat !== null && c.currentLng !== null)
+    .map((c) => ({
+      id: c.courierId,
+      lat: c.currentLat as number,
+      lng: c.currentLng as number,
+      type: "courier",
+      label: c.name,
+      isOnline: c.isOnline,
+    }));
 
   return (
     <div className="space-y-6">
@@ -105,29 +120,14 @@ export default function FleetPage() {
             {isLoading && <Loader2 size={16} className="animate-spin text-primary" />}
           </div>
           
-          {/* Map placeholder */}
-          <div className="flex h-[420px] flex-col items-center justify-center bg-gradient-to-br from-primary-light/30 to-primary/5 p-8 relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-light text-primary mb-4 shadow-inner">
-              <MapPin size={36} />
-            </div>
-            <h4 className="text-sm font-bold text-dark mb-1 text-center">Peta Akan Tampil Di Sini</h4>
-            <p className="text-xs text-gray-400 text-center max-w-xs mb-6">
-              Gunakan react-leaflet atau Google Maps untuk memvisualisasikan posisi kurir di atas peta.
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-2 max-w-md overflow-y-auto">
-              {fleetList.map((item) => (
-                <div key={item.courierId} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-sm border border-soft-gray">
-                  <span className={cn('h-2 w-2 rounded-full',
-                    item.isOnline ? 'bg-primary animate-pulse' : 'bg-gray-400'
-                  )} />
-                  <span className="text-[10px] font-bold text-dark">{item.name || 'Kurir'}</span>
-                </div>
-              ))}
-              {fleetList.length === 0 && !isLoading && (
-                <p className="text-[10px] text-gray-400 italic">Tidak ada data kurir</p>
-              )}
-            </div>
+          {/* Map */}
+          <div className="h-[420px] w-full">
+            <MapboxView
+              className="w-full h-full"
+              center={[112.7521, -7.2575]}
+              zoom={12}
+              markers={markers}
+            />
           </div>
         </div>
 

@@ -6,6 +6,10 @@ import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
 import { useQuery } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
+import { orderService } from "@/services/order.service";
+import MapboxView, { MapboxMarker } from "@/components/maps/MapboxView";
+import { OrderStatus } from "@/types/enums";
+import type { Order } from "@/types/models";
 import {
   Trash2,
   TrendingUp,
@@ -18,7 +22,31 @@ import {
   HelpCircle,
   MapPin,
   Loader2,
+  Package,
 } from "lucide-react";
+
+// Status yang menandakan order sedang aktif (belum selesai/batal)
+const ACTIVE_STATUSES: OrderStatus[] = [
+  OrderStatus.CREATED,
+  OrderStatus.MATCHED,
+  OrderStatus.ON_GOING,
+  OrderStatus.ARRIVED,
+  OrderStatus.WEIGHING,
+  OrderStatus.WAITING_PAYMENT,
+  OrderStatus.PICKED_UP,
+  OrderStatus.DELIVERING,
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  [OrderStatus.CREATED]: "Mencari Kurir",
+  [OrderStatus.MATCHED]: "Kurir Ditemukan",
+  [OrderStatus.ON_GOING]: "Menuju Lokasi",
+  [OrderStatus.ARRIVED]: "Kurir Tiba",
+  [OrderStatus.WEIGHING]: "Penimbangan",
+  [OrderStatus.WAITING_PAYMENT]: "Menunggu Bayar",
+  [OrderStatus.PICKED_UP]: "Diangkut",
+  [OrderStatus.DELIVERING]: "Diantar ke Gudang",
+};
 
 export default function UserDashboard() {
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
@@ -31,12 +59,53 @@ export default function UserDashboard() {
     queryFn: walletService.getTransactions,
   });
 
+  // Fetch orders to find active order
+  const { data: ordersData } = useQuery({
+    queryKey: ["userOrders"],
+    queryFn: () => orderService.getOrders(),
+  });
+
   const walletBalance = walletData?.data?.balance || 0;
+
+  // Find active order (first non-completed/cancelled)
+  const allOrders: Order[] = ordersData?.data || [];
+  const activeOrder = allOrders.find((o) =>
+    ACTIVE_STATUSES.includes(o.status),
+  );
+
+  // Filter history orders (Completed/Cancelled)
+  const historyOrders = allOrders
+    .filter((o) => o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED)
+    .map(o => ({
+      id: o.id,
+      type: "ORDER",
+      status: o.status,
+      title: o.status === OrderStatus.COMPLETED ? "Angkut Sampah" : "Pesanan Dibatalkan",
+      amount: o.totalCredit || 0,
+      createdAt: o.createdAt,
+      isIncome: o.status === OrderStatus.COMPLETED
+    }));
   
   // Filter and limit transactions for the dashboard
-  const transactions = (txData?.data || [])
+  const transactionItems = (txData?.data || [])
     .filter((tx) => ["SUCCESS"].includes(tx.status))
-    .slice(0, 6);
+    .map(tx => {
+      const isWithdrawal = tx.referenceType === "WITHDRAWAL";
+      return {
+        id: tx.id,
+        type: "TRANSACTION",
+        status: tx.status,
+        title: isWithdrawal ? "Tarik Saldo" : (tx.description || tx.referenceType).split(" - ")[0],
+        amount: tx.amount,
+        createdAt: tx.createdAt,
+        isIncome: tx.type === "CREDIT"
+      };
+    });
+
+  // Merge and sort all history items
+  const combinedHistory = [...historyOrders, ...transactionItems]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8);
 
   const formatDateShort = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("id-ID", {
@@ -64,6 +133,7 @@ export default function UserDashboard() {
         </div>
 
         {/* Mobile Only: Active Order Card (above stats) */}
+        {activeOrder && (
         <div className="md:hidden">
           <div className="bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm">
             <div className="p-3 border-b border-primary/10 flex items-center justify-between bg-primary/10">
@@ -74,39 +144,42 @@ export default function UserDashboard() {
                 </h3>
               </div>
               <span className="text-[9px] font-bold bg-white text-primary px-2 py-0.5 rounded-full border border-primary/20">
-                Menuju Lokasi
+                {STATUS_LABELS[activeOrder.status] || activeOrder.status}
               </span>
             </div>
             <div className="p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full border-2 border-white overflow-hidden shrink-0">
-                  <img
-                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Asep"
-                    alt="Courier"
-                    className="w-full h-full object-cover bg-primary/10"
-                  />
+                <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-lg border-2 border-white shrink-0">
+                  {activeOrder.courier?.user?.name?.charAt(0) || "K"}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-dark leading-none">
-                    Asep Sunandar
+                    {activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduleType === "SCHEDULED" 
+                      ? "Menunggu jam jemput" 
+                      : (activeOrder.courier?.user?.name || "Mencari kurir...")}
                   </p>
                   <p className="text-[10px] font-bold text-primary mt-1 uppercase tracking-wider">
-                    AGT-99212 • Motor
+                    {activeOrder.id.slice(0, 8).toUpperCase()} 
+                    {activeOrder.courier?.vehicleType ? ` • ${activeOrder.courier.vehicleType}` : ""}
+                    {activeOrder.scheduleType === "SCHEDULED" && activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduledAt && ` • Jam ${new Date(activeOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`}
                   </p>
                 </div>
                 <button
-                  onClick={() =>
-                    (window.location.href =
-                      "/dashboard/user/order/tracking/mock-order-123")
-                  }
+                  onClick={() => {
+                    const isSearchStep = activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED;
+                    window.location.href = isSearchStep 
+                      ? `/dashboard/user/order/search?orderId=${activeOrder.id}`
+                      : `/dashboard/user/order/tracking/${activeOrder.id}`;
+                  }}
                   className="px-4 py-2 rounded-full bg-primary text-white text-[10px] font-black hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
                 >
-                  Lacak
+                  {activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED ? "Cek Radar" : "Lacak"}
                 </button>
               </div>
             </div>
           </div>
         </div>
+        )}
 
         {/* Top Section: Wallet & Stats Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -141,6 +214,7 @@ export default function UserDashboard() {
         {/* Bottom Section: High-Density 3-Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {/* Column 1: Pesanan Berjalan with Map Preview (Desktop only — mobile version is above) */}
+          {activeOrder ? (
           <div className="hidden md:flex bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm flex-col">
             <div className="p-4 border-b border-primary/10 flex items-center justify-between bg-primary/10 shrink-0">
               <div className="flex items-center gap-2 text-primary">
@@ -150,51 +224,84 @@ export default function UserDashboard() {
                 </h3>
               </div>
               <span className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded-full border border-primary/20">
-                Menuju Lokasi
+                {STATUS_LABELS[activeOrder.status] || activeOrder.status}
               </span>
             </div>
             <div className="p-5 flex-1 flex flex-col space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full border-2 border-white overflow-hidden shrink-0">
-                  <img
-                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Asep"
-                    alt="Courier"
-                    className="w-full h-full object-cover bg-primary/10"
-                  />
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xl border-2 border-white shrink-0">
+                  {activeOrder.courier?.user?.name?.charAt(0) || "K"}
                 </div>
                 <div>
                   <p className="text-md font-bold text-dark leading-none">
-                    Asep Sunandar
+                    {activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduleType === "SCHEDULED" 
+                      ? "Menunggu jam jemput" 
+                      : (activeOrder.courier?.user?.name || "Mencari kurir...")}
                   </p>
                   <p className="text-xs font-bold text-primary mt-2 uppercase tracking-wider">
-                    AGT-99212
+                    {activeOrder.id.slice(0, 8).toUpperCase()} 
+                    {activeOrder.courier?.vehicleType ? ` • ${activeOrder.courier.vehicleType}` : ""}
+                    {activeOrder.scheduleType === "SCHEDULED" && activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduledAt && ` • Jam ${new Date(activeOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`}
                   </p>
                 </div>
               </div>
 
-              {/* Map Preview Placeholder */}
-              <div className="relative h-48 w-full rounded-xl overflow-hidden border border-primary/10 bg-gray-200 shadow-inner">
-                <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/106.8271, -6.1751,14,0/400x300?access_token=pk.eyJ1IjoiaWxoYW0iLCJhIjoiY2xwZ2p6eDlyMGJkejJpcGR6bnR6bnR6YyJ9.0')] bg-cover bg-center opacity-80"></div>
-                <div className="absolute inset-0 bg-linear-to-t from-primary/20 to-transparent"></div>
-
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center animate-ping absolute"></div>
-                  <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center relative shadow-lg border-2 border-white">
-                    <MapPin size={14} />
-                  </div>
-                </div>
+              {/* Map Preview */}
+              <div className="h-48 w-full rounded-xl overflow-hidden border border-primary/10 shadow-inner">
+                <MapboxView
+                  className="w-full h-full"
+                  center={[
+                    activeOrder.address?.longitude ? Number(activeOrder.address.longitude) : 112.7521,
+                    activeOrder.address?.latitude ? Number(activeOrder.address.latitude) : -7.2575
+                  ]}
+                  zoom={13}
+                  interactive={false}
+                  markers={[
+                    {
+                      id: "user",
+                      lat: activeOrder.address?.latitude ? Number(activeOrder.address.latitude) : -7.2575,
+                      lng: activeOrder.address?.longitude ? Number(activeOrder.address.longitude) : 112.7521,
+                      type: "user"
+                    }
+                  ]}
+                />
               </div>
 
               <div className="flex gap-2 shrink-0">
-                <button className="flex-[0.4] px-3 py-2.5 rounded-full bg-white border border-primary/20 text-primary text-xs font-bold hover:bg-primary/5 transition-all">
+                <button
+                  onClick={() => (window.location.href = `/dashboard/user/history/${activeOrder.id}`)}
+                  className="flex-[0.4] px-3 py-2.5 rounded-full bg-white border border-primary/20 text-primary text-xs font-bold hover:bg-primary/5 transition-all"
+                >
                   Detail
                 </button>
-                <button className="flex-1 px-3 py-2.5 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all active:scale-95 shadow-sm">
-                  Lacak Kurir
+                <button
+                  onClick={() => {
+                    const isSearchStep = activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED;
+                    window.location.href = isSearchStep 
+                      ? `/dashboard/user/order/search?orderId=${activeOrder.id}`
+                      : `/dashboard/user/order/tracking/${activeOrder.id}`;
+                  }}
+                  className="flex-1 px-3 py-2.5 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all active:scale-95 shadow-sm"
+                >
+                  {activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED ? "Cek Radar" : "Lacak Kurir"}
                 </button>
               </div>
             </div>
           </div>
+          ) : (
+          <div className="hidden md:flex bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex-col items-center justify-center p-8">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-3">
+              <Package size={24} />
+            </div>
+            <p className="text-sm font-bold text-gray-400">Tidak ada pesanan aktif</p>
+            <button
+              onClick={() => (window.location.href = "/dashboard/user/order")}
+              className="mt-3 px-5 py-2 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all active:scale-95"
+            >
+              Buat Pesanan Baru
+            </button>
+          </div>
+          )}
 
           {/* Column 2: Riwayat */}
           <div className="lg:col-span-1 space-y-6">
@@ -218,43 +325,49 @@ export default function UserDashboard() {
               </div>
 
               <div className="divide-y divide-gray-50 flex-1 overflow-auto">
-                {isTxLoading ? (
+                {isTxLoading || isWalletLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-6 h-6 text-primary animate-spin" />
                   </div>
-                ) : transactions.length === 0 ? (
+                ) : combinedHistory.length === 0 ? (
                   <div className="p-10 text-center">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                       Belum ada riwayat
                     </p>
                   </div>
                 ) : (
-                  transactions.map((item) => {
-                    const isIncome = item.type === "CREDIT";
-                    const isWithdrawal = item.referenceType === "WITHDRAWAL";
-                    const displayTitle = isWithdrawal
-                      ? "Tarik Saldo"
-                      : (item.description || item.referenceType).split(" - ")[0];
+                  combinedHistory.map((item) => {
+                    const isOrder = item.type === "ORDER";
+                    const isCancelled = item.status === OrderStatus.CANCELLED;
 
                     return (
                       <div
                         key={item.id}
-                        className="p-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between"
+                        className="p-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between cursor-pointer"
+                        onClick={() => {
+                          if (isOrder) {
+                            window.location.href = `/dashboard/user/history/${item.id}`;
+                          } else {
+                            window.location.href = "/dashboard/user/wallet";
+                          }
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className={cn(
                               "w-8 h-8 rounded-lg flex items-center justify-center text-[8px] font-black",
-                              isIncome
-                                ? "bg-primary-light/40 text-green-600"
-                                : "bg-red-50 text-red-600",
+                              item.isIncome
+                                ? "bg-primary/10 text-primary"
+                                : isCancelled 
+                                  ? "bg-red-50 text-red-400"
+                                  : "bg-red-50 text-red-600",
                             )}
                           >
-                            {isIncome ? "IN" : "OUT"}
+                            {isOrder ? (isCancelled ? "X" : "ORD") : (item.isIncome ? "IN" : "OUT")}
                           </div>
                           <div>
                             <p className="text-[11px] font-bold text-dark">
-                              {displayTitle}
+                              {item.title}
                             </p>
                             <p className="text-[9px] text-gray-400 font-medium">
                               {formatDateShort(item.createdAt)}
@@ -265,12 +378,17 @@ export default function UserDashboard() {
                           <p
                             className={cn(
                               "text-[11px] font-bold",
-                              isIncome ? "text-green-600" : "text-dark",
+                              item.isIncome ? "text-green-600" : (isCancelled ? "text-gray-400" : "text-dark"),
                             )}
                           >
-                            {isIncome ? "+" : "-"} Rp{" "}
+                            {isCancelled ? "" : (item.isIncome ? "+" : "-")} Rp{" "}
                             {item.amount.toLocaleString("id-ID")}
                           </p>
+                          {isOrder && !isCancelled && (
+                            <p className="text-[8px] font-bold text-primary mt-0.5">
+                              #{item.id.slice(0, 6).toUpperCase()}
+                            </p>
+                          )}
                         </div>
                       </div>
                     );

@@ -1,50 +1,82 @@
 "use client";
-import React, { useState } from "react";
-import { ArrowLeft, Box, ChevronLeft } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Box, ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import ARScanner, { ScanResult } from "@/components/ar/ARScanner";
 import VolumeEstimate from "@/components/ar/VolumeEstimate";
 import AddressPicker from "@/components/maps/AddressPicker";
 import VehicleDisplay from "./VehicleRecommendation";
 import SchedulePicker from "./SchedulePicker";
-import { VehicleType, ScheduleType } from "@/types/enums";
-import { UserAddress } from "@/services/user.service";
+import { VehicleType, ScheduleType, OrderStatus } from "@/types/enums";
 import { useRouter } from "next/navigation";
+import { orderService } from "@/services/order.service";
+import { addressService } from "@/services/address.service";
+import { parseDecimal } from "@/lib/decimal";
+import type { Address } from "@/types/models";
+import { toast } from "sonner";
 
-// Mock addresses (will be replaced by fetching in Batch 8)
-const MOCK_ADDRESSES: UserAddress[] = [
-  {
-    id: "addr-1",
-    userId: "user-1",
-    label: "Home",
-    district: "Tandes",
-    village: "Manukan Kulon",
-    addressDetail: "Manukan Yoso Dalam Blok 7i No 16",
-    isPrimary: true,
-  },
-  {
-    id: "addr-2",
-    userId: "user-1",
-    label: "Office",
-    district: "Jambangan",
-    village: "Jambangan",
-    addressDetail: "Jalan Jambangan Baru II No 15",
-    isPrimary: false,
-  },
-];
+/** Lightweight address shape used only within the wizard UI */
+interface WizardAddress {
+  id: string;
+  userId: string;
+  label: string;
+  district?: string;
+  village?: string;
+  addressDetail: string;
+  isPrimary: boolean;
+}
+
+/** Convert BE Address (with Prisma Decimal coords) to the simple shape the picker needs */
+function toWizardAddress(a: Address): WizardAddress {
+  return {
+    id: a.id,
+    userId: a.userId,
+    label: a.label,
+    district: a.district,
+    village: a.village,
+    addressDetail: a.addressDetail,
+    isPrimary: a.isPrimary,
+  };
+}
 
 export default function OrderWizard() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Address State — fetched from BE
+  const [addresses, setAddresses] = useState<WizardAddress[]>([]);
+  const [address, setAddress] = useState<WizardAddress | null>(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
 
   // Form State
-  const [address, setAddress] = useState<UserAddress>(MOCK_ADDRESSES[0]);
   const [vehicle, setVehicle] = useState<VehicleType>(VehicleType.MOTOR);
   const [scheduleType, setScheduleType] = useState<ScheduleType>(
     ScheduleType.INSTANT,
   );
   const [scheduledTime, setScheduledTime] = useState<string>("");
   const [notes, setNotes] = useState("");
+
+  // Fetch addresses from BE when wizard loads
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      setLoadingAddresses(true);
+      try {
+        const result = await addressService.getAddresses();
+        const list = (result.data || []).map(toWizardAddress);
+        setAddresses(list);
+        // Auto-select primary or first address
+        const primary = list.find((a) => a.isPrimary) || list[0] || null;
+        setAddress(primary);
+      } catch (err) {
+        console.error("Failed to fetch addresses:", err);
+        toast.error("Gagal memuat alamat. Silakan coba lagi.");
+      } finally {
+        setLoadingAddresses(false);
+      }
+    };
+    fetchAddresses();
+  }, []);
 
   const handleScanComplete = (result: ScanResult) => {
     setScanResult(result);
@@ -61,8 +93,67 @@ export default function OrderWizard() {
     setStep(3);
   };
 
-  const handleSubmit = () => {
-    router.push("/dashboard/user/order/search");
+  const handleSubmit = async () => {
+    if (!address) {
+      toast.error("Pilih alamat penjemputan terlebih dahulu.");
+      return;
+    }
+    if (!scanResult?.aiResultId) {
+      toast.error("Hasil scan AI tidak ditemukan. Silakan scan ulang.");
+      return;
+    }
+    if (scheduleType === ScheduleType.SCHEDULED && !scheduledTime) {
+      toast.error("Pilih waktu penjemputan untuk jadwal terjadwal.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Build scheduledAt ISO string if SCHEDULED
+      let scheduledAt: string | null = null;
+      if (scheduleType === ScheduleType.SCHEDULED && scheduledTime) {
+        const today = new Date();
+        const [h, m] = scheduledTime.split(":").map(Number);
+        today.setHours(h, m, 0, 0);
+        scheduledAt = today.toISOString();
+      }
+
+      const result = await orderService.createOrder({
+        addressId: address.id,
+        scheduleType,
+        scheduledAt,
+        note: notes || undefined,
+        aiResultId: scanResult.aiResultId,
+      });
+
+      const order = result.data;
+      toast.success("Pesanan berhasil dibuat!");
+
+      // Navigate to search/tracking page
+      if (
+        order.status === OrderStatus.CREATED ||
+        order.status === OrderStatus.MATCHED
+      ) {
+        // Search (radar) page — wait for courier to accept (ON_GOING)
+        router.push(`/dashboard/user/order/search?orderId=${order.id}`);
+      } else if (order.status === OrderStatus.CANCELLED) {
+        // Auto-cancelled (no courier)
+        toast.error(
+          "Tidak ada kurir tersedia di sekitar Anda. Coba lagi nanti.",
+        );
+        router.push("/dashboard/user");
+      } else {
+        // ON_GOING or beyond — go to tracking
+        router.push(`/dashboard/user/order/tracking/${order.id}`);
+      }
+    } catch (err: any) {
+      console.error("Create order failed:", err);
+      const msg =
+        err.response?.data?.message || "Gagal membuat pesanan. Coba lagi.";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const goBack = () => {
@@ -117,7 +208,28 @@ export default function OrderWizard() {
             <ARScanner
               onComplete={handleScanComplete}
               onCancel={() => router.push("/dashboard/user")}
+              manualHint={notes}
+              onHintChange={setNotes}
             />
+            {/* Manual Hint Input moved here (below scanner) */}
+            <div className="mt-4 p-5 rounded-3xl bg-white border border-gray-100 shadow-sm space-y-3">
+              <div className="flex items-center gap-2 text-primary">
+                <Sparkles size={16} className="fill-primary/20" />
+                <h3 className="text-xs font-black uppercase tracking-widest">
+                  Tambahkan Detail (Opsional)
+                </h3>
+              </div>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Contoh: Ada tumpukan kayu di bawah kardus..."
+                className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 text-sm text-dark focus:outline-none focus:border-primary transition-colors resize-none h-24"
+              />
+              <p className="text-[10px] text-gray-400 font-bold leading-relaxed">
+                Informasi tambahan membantu AI memberikan estimasi yang lebih
+                akurat.
+              </p>
+            </div>
           </div>
         )}
 
@@ -157,11 +269,27 @@ export default function OrderWizard() {
               <h3 className="text-xs font-bold tracking-wide text-gray-600 ">
                 Lokasi Penjemputan
               </h3>
-              <AddressPicker
-                addresses={MOCK_ADDRESSES}
-                selected={address}
-                onSelect={setAddress}
-              />
+              {loadingAddresses ? (
+                <div className="p-4 rounded-2xl border border-gray-100 bg-white flex items-center justify-center gap-2 text-gray-400">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span className="text-xs font-bold">Memuat alamat...</span>
+                </div>
+              ) : addresses.length > 0 && address ? (
+                <AddressPicker
+                  addresses={addresses}
+                  selected={address}
+                  onSelect={setAddress}
+                />
+              ) : (
+                <div className="p-4 rounded-2xl border border-red-100 bg-red-50 text-center">
+                  <p className="text-xs font-bold text-red-500">
+                    Belum ada alamat tersimpan.
+                  </p>
+                  <p className="text-[10px] text-red-400 mt-1">
+                    Tambahkan alamat di menu Profil → Alamat.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 2. Vehicle (Auto-locked by AI) */}
@@ -207,9 +335,18 @@ export default function OrderWizard() {
         <div className="sticky bottom-16 p-4 z-20">
           <button
             onClick={handleSubmit}
-            className="w-full py-4 rounded-full bg-dark text-white font-black text-xs uppercase tracking-widest hover:bg-primary transition-colors shadow-xl shadow-gray-300/30 flex items-center justify-center gap-2 cursor-pointer"
+            disabled={isSubmitting || !address}
+            className="w-full py-4 rounded-full bg-dark text-white font-black text-xs uppercase tracking-widest hover:bg-primary transition-colors shadow-xl shadow-gray-300/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cari Kurir Sekarang <Box size={16} />
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Memproses...
+              </>
+            ) : (
+              <>
+                Cari Kurir Sekarang <Box size={16} />
+              </>
+            )}
           </button>
         </div>
       )}
