@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { walletService } from "@/services/wallet.service";
 import {
   User,
@@ -18,11 +18,12 @@ import {
   ToggleLeft,
   ToggleRight,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
-import { userService } from "@/services/user.service";
+import { courierService } from "@/services/courier.service";
 import LogoutModal from "@/components/dashboard/LogoutModal";
 
 // Reusing User sections for now (they should be generic enough or we can duplicate if needed)
@@ -63,9 +64,9 @@ const menuItems = [
 ];
 
 export default function ProfileView() {
+  const queryClient = useQueryClient();
   const [active, setActive] = useState<ActiveSection>("overview");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isOnline, setIsOnline] = useState(true); // Courier specific status
   const router = useRouter();
 
   const handleLogout = () => {
@@ -87,14 +88,26 @@ export default function ProfileView() {
     return num.toString();
   };
 
-  const { data: profileData, isLoading: isProfileLoading } = useQuery({
-    queryKey: ["userProfile"],
-    queryFn: userService.getProfile,
+  const { data: courierProfileRes, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["courierProfile"],
+    queryFn: courierService.getProfile,
   });
 
-  const userData = profileData?.data;
+  const courierData = courierProfileRes?.data;
+  const userData = courierData?.user;
+  const isOnline = courierData?.isOnline ?? false;
 
-  // Added Courier-specific mock data
+  const statusMutation = useMutation({
+    mutationFn: (newStatus: boolean) => courierService.updateStatus(newStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courierProfile"] });
+    },
+  });
+
+  const handleToggleStatus = () => {
+    statusMutation.mutate(!isOnline);
+  };
+
   const user = {
     name: userData?.name || "Kurir Angkutin",
     email: userData?.email || "kurir@angkutin.com",
@@ -114,21 +127,22 @@ export default function ProfileView() {
     totalPoints: 4200, // Mock points
     totalBalance: walletBalance,
     tier: "Gold Courier",
-    vehicleType: "Motor Bak Roda 3", // Courier specific
-    vehiclePlate: "D 1234 ABC", // Courier specific
+    vehicleType: courierData?.vehicleType || "Motor Bak Roda 3", // Courier specific
+    vehiclePlate: courierData?.vehiclePlate || "D 1234 ABC", // Courier specific
   };
 
+  if (active === "personal")
     return (
-      <PersonalInfoSection 
-        user={user} 
-        onBack={() => setActive("overview")} 
+      <PersonalInfoSection
+        user={user}
+        onBack={() => setActive("overview")}
         role="courier"
       />
     );
   if (active === "address")
     return <AddressSection onBack={() => setActive("overview")} />;
   if (active === "security")
-    return <SecuritySection onBack={() => setActive("overview")} />;
+    return <SecuritySection user={user} onBack={() => setActive("overview")} />;
   if (active === "notification")
     return <NotificationSection onBack={() => setActive("overview")} />;
 
@@ -172,14 +186,19 @@ export default function ProfileView() {
                       {user.name}
                     </h1>
                     <button
-                      onClick={() => setIsOnline(!isOnline)}
+                      disabled={statusMutation.isPending || isProfileLoading}
+                      onClick={handleToggleStatus}
                       className={cn(
                         "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer",
                         isOnline
                           ? "bg-green-500/10 text-green-400 border-green-500/20"
                           : "bg-white/10 text-white/50 border-white/10",
+                        (statusMutation.isPending || isProfileLoading) && "opacity-50 cursor-not-allowed"
                       )}
                     >
+                      {statusMutation.isPending || isProfileLoading ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : null}
                       {isOnline ? "Menerima Order" : "Sedang Istirahat"}
                     </button>
                   </div>

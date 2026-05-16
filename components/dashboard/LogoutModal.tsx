@@ -45,7 +45,7 @@ export default function LogoutModal({
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-sm bg-white rounded-2xl overflow-hidden pointer-events-auto"
+              className="w-full max-w-sm bg-white rounded-2xl overflow-hidden pointer-events-auto shadow-xl"
             >
               {/* Header with Close */}
               <div className="flex justify-end p-4 pb-0">
@@ -59,7 +59,7 @@ export default function LogoutModal({
 
               {/* Content */}
               <div className="px-8 pb-10 text-center flex flex-col items-center">
-                <div className="p-8 text-red-500 rounded-3xl flex items-center justify-center mb-6 ">
+                <div className="p-8 text-red-500 rounded-3xl flex items-center justify-center mb-6 bg-red-50">
                   <LogOut size={32} />
                 </div>
 

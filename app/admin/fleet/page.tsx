@@ -6,6 +6,8 @@ import StatsCard from '@/components/admin/StatsCard';
 import { cn } from '@/lib/cn';
 import { useQuery } from '@tanstack/react-query';
 import { adminService } from '@/services/admin.service';
+import MapboxView, { MapboxMarker } from '@/components/maps/MapboxView';
+import { parseDecimal } from '@/lib/decimal';
 
 const statusColors: Record<string, string> = {
   idle: 'bg-soft-gray text-gray-500',
@@ -20,15 +22,62 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function FleetPage() {
-  const { data: fleetData, isLoading } = useQuery({
+  // Fetch real-time locations
+  const { data: fleetData, isLoading: isFleetLoading } = useQuery({
     queryKey: ['admin', 'fleet', 'locations'],
     queryFn: () => adminService.getFleetLocations(),
-    refetchInterval: 10000, // Poll every 10 seconds
+    refetchInterval: 5000, // Poll every 5 seconds for location
   });
 
+  // Fetch all couriers to ensure the list is complete
+  const { data: couriersRes, isLoading: isCouriersLoading } = useQuery({
+    queryKey: ['admin', 'couriers'],
+    queryFn: () => adminService.getCouriers(),
+  });
+
+  const isLoading = isFleetLoading || isCouriersLoading;
+  
+  const rawCouriers = couriersRes?.data || [];
   const locations = fleetData?.data || [];
-  const onlineCouriers = locations.filter((c) => c.isOnline).length;
-  const offlineCouriers = locations.filter((c) => !c.isOnline).length;
+
+  // Flatten courier data (nested user object)
+  const courierProfiles = rawCouriers.map((c: any) => ({
+    ...c,
+    userId: c.user?.id || c.userId || c.id || '',
+    name: c.name || c.user?.name || 'Kurir',
+    email: c.email || c.user?.email || '',
+    isOnline: c.isOnline === true || c.user?.isOnline === true,
+  }));
+
+  // Merge location data into courier profiles
+  const fleetList = courierProfiles.map(courier => {
+    const loc = locations.find(l => l.courierId === courier.id);
+    const currentLat = loc ? parseDecimal(loc.currentLat) : null;
+    const currentLng = loc ? parseDecimal(loc.currentLng) : null;
+    return {
+      courierId: courier.id,
+      name: courier.name,
+      isOnline: loc ? loc.isOnline : courier.isOnline, // Use real-time if available, else profile
+      currentLat,
+      currentLng,
+      currentOrderId: loc?.currentOrderId || null,
+    };
+  });
+
+  const onlineCouriers = fleetList.filter((c) => c.isOnline).length;
+  const offlineCouriers = fleetList.filter((c) => !c.isOnline).length;
+  const totalCouriers = fleetList.length;
+
+  const markers: MapboxMarker[] = fleetList
+    .filter((c) => c.currentLat !== null && c.currentLng !== null)
+    .map((c) => ({
+      id: c.courierId,
+      lat: c.currentLat as number,
+      lng: c.currentLng as number,
+      type: "courier",
+      label: c.name,
+      isOnline: c.isOnline,
+    }));
 
   return (
     <div className="space-y-6">
@@ -53,7 +102,7 @@ export default function FleetPage() {
         />
         <StatsCard
           label="Total Kurir"
-          value={isLoading ? '...' : locations.length}
+          value={isLoading ? '...' : totalCouriers}
           icon={Truck}
           iconColor="bg-gradient-to-br from-dark to-foreground"
         />
@@ -71,29 +120,14 @@ export default function FleetPage() {
             {isLoading && <Loader2 size={16} className="animate-spin text-primary" />}
           </div>
           
-          {/* Map placeholder */}
-          <div className="flex h-[420px] flex-col items-center justify-center bg-gradient-to-br from-primary-light/30 to-primary/5 p-8 relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-light text-primary mb-4 shadow-inner">
-              <MapPin size={36} />
-            </div>
-            <h4 className="text-sm font-bold text-dark mb-1 text-center">Peta Akan Tampil Di Sini</h4>
-            <p className="text-xs text-gray-400 text-center max-w-xs mb-6">
-              Gunakan react-leaflet atau Google Maps untuk memvisualisasikan posisi kurir di atas peta.
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-2 max-w-md overflow-y-auto">
-              {locations.map((loc) => (
-                <div key={loc.courierId} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-sm border border-soft-gray">
-                  <span className={cn('h-2 w-2 rounded-full',
-                    loc.isOnline ? 'bg-primary animate-pulse' : 'bg-gray-400'
-                  )} />
-                  <span className="text-[10px] font-bold text-dark">{loc.name}</span>
-                </div>
-              ))}
-              {locations.length === 0 && !isLoading && (
-                <p className="text-[10px] text-gray-400 italic">Tidak ada data kurir</p>
-              )}
-            </div>
+          {/* Map */}
+          <div className="h-[420px] w-full">
+            <MapboxView
+              className="w-full h-full"
+              center={[112.7521, -7.2575]}
+              zoom={12}
+              markers={markers}
+            />
           </div>
         </div>
 
@@ -110,35 +144,35 @@ export default function FleetPage() {
               </div>
             ))}
             
-            {locations.map((loc) => (
-              <div key={loc.courierId} className="flex items-center gap-3 px-5 py-3 hover:bg-very-light-gray transition-colors">
+            {fleetList.map((item) => (
+              <div key={item.courierId} className="flex items-center gap-3 px-5 py-3 hover:bg-very-light-gray transition-colors">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-secondary text-xs font-bold text-white shrink-0 shadow-sm">
-                  {loc.name.charAt(0)}
+                  {(item.name || 'K').charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-bold text-dark truncate">{loc.name}</p>
-                    {loc.currentOrderId && (
+                    <p className="text-sm font-bold text-dark truncate">{item.name || 'Kurir'}</p>
+                    {item.currentOrderId && (
                       <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
                     )}
                   </div>
                   <p className="text-[10px] text-gray-400 font-medium">
-                    {loc.currentLat ? `${loc.currentLat.toFixed(4)}, ${loc.currentLng?.toFixed(4)}` : 'Lokasi tidak tersedia'}
-                    {loc.currentOrderId && <span className="ml-1.5 text-primary bg-primary/10 px-1 rounded font-bold uppercase">• {loc.currentOrderId}</span>}
+                    {item.currentLat ? `${item.currentLat.toFixed(4)}, ${item.currentLng?.toFixed(4)}` : 'Lokasi tidak tersedia'}
+                    {item.currentOrderId && <span className="ml-1.5 text-primary bg-primary/10 px-1 rounded font-bold uppercase">• {item.currentOrderId}</span>}
                   </p>
                 </div>
                 <span className={cn(
                   'rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 border uppercase tracking-tight',
-                  loc.isOnline 
+                  item.isOnline 
                     ? 'bg-[#d1fae5] text-secondary border-[#a7f3d0]' 
                     : 'bg-soft-gray text-gray-500 border-gray-200'
                 )}>
-                  {loc.isOnline ? 'Online' : 'Offline'}
+                  {item.isOnline ? 'Online' : 'Offline'}
                 </span>
               </div>
             ))}
             
-            {locations.length === 0 && !isLoading && (
+            {fleetList.length === 0 && !isLoading && (
               <div className="p-8 text-center">
                 <p className="text-xs text-gray-400 italic">Data kurir tidak ditemukan</p>
               </div>

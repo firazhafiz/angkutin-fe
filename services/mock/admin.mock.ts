@@ -85,8 +85,7 @@ export interface ResiduPricing {
 export const mockResiduPricing: ResiduPricing[] = [
   { id: "r1", vehicleType: VehicleType.MOTOR, vehicleLabel: "Motor", pricePerKg: 1_500, updatedAt: "2026-04-20" },
   { id: "r2", vehicleType: VehicleType.PICKUP, vehicleLabel: "Pickup", pricePerKg: 1_200, updatedAt: "2026-04-20" },
-  { id: "r3", vehicleType: VehicleType.TRUCK_SMALL, vehicleLabel: "Truk Kecil", pricePerKg: 1_000, updatedAt: "2026-04-18" },
-  { id: "r4", vehicleType: VehicleType.TRUCK_LARGE, vehicleLabel: "Truk Besar", pricePerKg: 800, updatedAt: "2026-04-18" },
+  { id: "r3", vehicleType: VehicleType.TRUCK, vehicleLabel: "Truk", pricePerKg: 1_000, updatedAt: "2026-04-18" },
 ];
 
 // ──────────────────────────────────────────────────────────
@@ -102,11 +101,11 @@ export const mockUsers: User[] = [
 ];
 
 export const mockCouriers: CourierProfile[] = [
-  { id: "c1", name: "Agus Prasetyo", email: "agus.p@angkutin.id", phone: "081111222333", role: UserRole.COURIER, createdAt: "2026-02-10", vehicleType: VehicleType.MOTOR, vehiclePlate: "B 1234 ABC", isOnline: true, rating: 4.8, totalDeliveries: 342 },
-  { id: "c2", name: "Joko Widodo", email: "joko.w@angkutin.id", phone: "081444555666", role: UserRole.COURIER, createdAt: "2026-02-15", vehicleType: VehicleType.PICKUP, vehiclePlate: "B 5678 DEF", isOnline: true, rating: 4.6, totalDeliveries: 218 },
-  { id: "c3", name: "Hendra Setiawan", email: "hendra.s@angkutin.id", phone: "081777888999", role: UserRole.COURIER, createdAt: "2026-03-01", vehicleType: VehicleType.TRUCK_SMALL, vehiclePlate: "B 9012 GHI", isOnline: false, rating: 4.9, totalDeliveries: 156 },
-  { id: "c4", name: "Dian Kusuma", email: "dian.k@angkutin.id", phone: "082111333555", role: UserRole.COURIER, createdAt: "2026-03-10", vehicleType: VehicleType.MOTOR, vehiclePlate: "B 3456 JKL", isOnline: true, rating: 4.7, totalDeliveries: 289 },
-  { id: "c5", name: "Eko Cahyono", email: "eko.c@angkutin.id", phone: "082444666888", role: UserRole.COURIER, createdAt: "2026-03-20", vehicleType: VehicleType.TRUCK_LARGE, vehiclePlate: "B 7890 MNO", isOnline: false, rating: 4.5, totalDeliveries: 97 },
+  { id: "c1", name: "Agus Prasetyo", email: "agus.p@angkutin.id", phone: "081111222333", role: UserRole.COURIER, createdAt: "2026-02-10", vehicleType: VehicleType.MOTOR, vehiclePlate: "B 1234 ABC", isOnline: true, totalDeliveries: 342 },
+  { id: "c2", name: "Joko Widodo", email: "joko.w@angkutin.id", phone: "081444555666", role: UserRole.COURIER, createdAt: "2026-02-15", vehicleType: VehicleType.PICKUP, vehiclePlate: "B 5678 DEF", isOnline: true, totalDeliveries: 218 },
+  { id: "c3", name: "Hendra Setiawan", email: "hendra.s@angkutin.id", phone: "081777888999", role: UserRole.COURIER, createdAt: "2026-03-01", vehicleType: VehicleType.TRUCK, vehiclePlate: "B 9012 GHI", isOnline: false, totalDeliveries: 156 },
+  { id: "c4", name: "Dian Kusuma", email: "dian.k@angkutin.id", phone: "082111333555", role: UserRole.COURIER, createdAt: "2026-03-10", vehicleType: VehicleType.MOTOR, vehiclePlate: "B 3456 JKL", isOnline: true, totalDeliveries: 289 },
+  { id: "c5", name: "Eko Cahyono", email: "eko.c@angkutin.id", phone: "082444666888", role: UserRole.COURIER, createdAt: "2026-03-20", vehicleType: VehicleType.TRUCK, vehiclePlate: "B 7890 MNO", isOnline: false, totalDeliveries: 97 },
 ];
 
 // ──────────────────────────────────────────────────────────
@@ -191,7 +190,7 @@ export function mockVerifyQR(qrString: string): ScanResult {
     return {
       orderId: qrString,
       matched: true,
-      orderStatus: OrderStatus.TRIAGE,
+      orderStatus: OrderStatus.WEIGHING,
       userName: "Muhammad Ilham",
       courierName: "Agus Prasetyo",
       wasteItems: [

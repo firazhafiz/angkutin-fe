@@ -5,6 +5,7 @@ import { Search, Eye, Ban, Trash2, CheckCircle2 } from 'lucide-react';
 import DataTable, { type Column } from '@/components/admin/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '@/services/admin.service';
 import type { UserProfile } from '@/types/api';
@@ -15,6 +16,16 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  
+  // Confirm Modal States
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    user: UserProfile | null;
+  }>({
+    isOpen: false,
+    user: null,
+  });
+
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
@@ -22,28 +33,23 @@ export default function UsersPage() {
     queryFn: adminService.getAllUsers,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { status: 'ACTIVE' | 'SUSPENDED' } }) => adminService.updateUser(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('Status pengguna berhasil diperbarui');
-    },
-    onError: (error: any) => {
-      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal memperbarui status';
-      toast.error(msg);
-    },
-  });
-
   const deleteMutation = useMutation({
     mutationFn: adminService.deleteUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      setConfirmModal({ ...confirmModal, isOpen: false });
       setIsDetailModalOpen(false);
       toast.success('Pengguna berhasil dihapus');
     },
     onError: (error: any) => {
-      const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal menghapus pengguna';
-      toast.error(msg);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || '';
+      
+      if (errorMsg.includes('Foreign key constraint violated') || errorMsg.includes('orders')) {
+        toast.error('Tidak dapat menghapus pengguna karena memiliki riwayat transaksi/pesanan.');
+      } else {
+        toast.error(errorMsg || 'Gagal menghapus pengguna');
+      }
+      setConfirmModal({ ...confirmModal, isOpen: false });
     },
   });
 
@@ -65,17 +71,17 @@ export default function UsersPage() {
     setIsDetailModalOpen(true);
   };
 
-  const handleToggleStatus = (user: UserProfile) => {
-    const newStatus = user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-    if (confirm(`Apakah Anda yakin ingin mengubah status ${user.name} menjadi ${newStatus}?`)) {
-      updateMutation.mutate({ id: user.id, data: { status: newStatus } });
-    }
+  const handleDelete = (user: UserProfile) => {
+    setConfirmModal({
+      isOpen: true,
+      user,
+    });
   };
 
-  const handleDelete = (user: UserProfile) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus ${user.name} secara permanen? Data yang terkait juga akan dihapus.`)) {
-      deleteMutation.mutate(user.id);
-    }
+  const executeConfirm = () => {
+    const { user } = confirmModal;
+    if (!user) return;
+    deleteMutation.mutate(user.id);
   };
 
   const ActionButtons = ({ user }: { user: UserProfile }) => (
@@ -86,18 +92,6 @@ export default function UsersPage() {
         title="Lihat Detail"
       >
         <Eye size={14} />
-      </button>
-      <button 
-        onClick={() => handleToggleStatus(user)}
-        className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-lg transition-colors",
-          user.status === 'ACTIVE' 
-            ? "text-red-400 hover:bg-red-50 hover:text-red-600" 
-            : "text-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
-        )} 
-        title={user.status === 'ACTIVE' ? "Suspend Akun" : "Aktifkan Akun"}
-      >
-        {user.status === 'ACTIVE' ? <Ban size={14} /> : <CheckCircle2 size={14} />}
       </button>
       <button 
         onClick={() => handleDelete(user)}
@@ -127,17 +121,6 @@ export default function UsersPage() {
     { 
       key: 'phone', header: 'Telepon',
       render: (item) => <span className="text-sm text-gray-600">{item.phone || '-'}</span>
-    },
-    {
-      key: 'status', header: 'Status', align: 'center',
-      render: (item) => (
-        <span className={cn(
-          "px-2.5 py-0.5 rounded-full text-xs font-medium",
-          item.status === 'ACTIVE' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-        )}>
-          {item.status === 'ACTIVE' ? 'Aktif' : 'Suspended'}
-        </span>
-      )
     },
     {
       key: 'orders', header: 'Total Pesanan', align: 'center',
@@ -246,6 +229,19 @@ export default function UsersPage() {
           </div>
         )}
       </Modal>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={executeConfirm}
+        title="Hapus Pengguna"
+        message={`Apakah Anda yakin ingin menghapus ${confirmModal.user?.name} secara permanen? Data yang terkait juga akan dihapus.`}
+        confirmText="Hapus"
+        type="danger"
+        icon="delete"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

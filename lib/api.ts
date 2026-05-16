@@ -1,4 +1,6 @@
 import axios from "axios";
+import { storage } from "@/lib/storage";
+import Cookies from "js-cookie";
 
 // Instance axios untuk komunikasi ke Backend
 const api = axios.create({
@@ -14,8 +16,7 @@ const api = axios.create({
 // Interceptor untuk menyisipkan token JWT secara otomatis
 api.interceptors.request.use(
   (config) => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = storage.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -42,7 +43,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem("refresh_token");
+        const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
 
         if (!refreshToken) {
           throw new Error("No refresh token available");
@@ -61,7 +62,8 @@ api.interceptors.response.use(
           response.data.data;
 
         // Simpan token baru
-        localStorage.setItem("token", access_token);
+        storage.setToken(access_token);
+        Cookies.set("token", access_token, { expires: 7 });
         if (newRefreshToken) {
           localStorage.setItem("refresh_token", newRefreshToken);
         }
@@ -71,9 +73,12 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Jika refresh gagal, logout user
-        localStorage.removeItem("token");
+        storage.clear();
         localStorage.removeItem("refresh_token");
+        localStorage.removeItem("token");
         localStorage.removeItem("user");
+        Cookies.remove("token");
+        Cookies.remove("user_role");
 
         if (
           typeof window !== "undefined" &&

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Tag,
@@ -18,17 +18,20 @@ import {
   LogOut,
   Menu,
   X,
-} from 'lucide-react';
-import { cn } from '@/lib/cn';
+} from "lucide-react";
+import { cn } from "@/lib/cn";
 
 // ──────────────────────────────────────────────────────────
 // Sidebar menu items — sesuai adminNavItems di config/navigation.ts
 // ──────────────────────────────────────────────────────────
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
-  'layout-dashboard': LayoutDashboard,
+const ICON_MAP: Record<
+  string,
+  React.ComponentType<{ className?: string; size?: number }>
+> = {
+  "layout-dashboard": LayoutDashboard,
   tag: Tag,
   truck: Truck,
-  'scan-line': ScanLine,
+  "scan-line": ScanLine,
   users: Users,
   bike: Bike,
   banknote: Banknote,
@@ -43,14 +46,14 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { label: 'Dashboard', href: '/admin/dashboard', icon: 'layout-dashboard' },
-  { label: 'Tarif Harga', href: '/admin/pricing', icon: 'tag' },
-  { label: 'Armada', href: '/admin/fleet', icon: 'truck' },
+  { label: "Dashboard", href: "/admin/dashboard", icon: "layout-dashboard" },
+  { label: "Tarif Harga", href: "/admin/pricing", icon: "tag" },
+  { label: "Armada", href: "/admin/fleet", icon: "truck" },
   // { label: 'Terminal QR', href: '/admin/terminal', icon: 'scan-line' },
-  { label: 'Pengguna', href: '/admin/users', icon: 'users' },
-  { label: 'Kurir', href: '/admin/couriers', icon: 'bike' },
-  { label: 'Keuangan', href: '/admin/finance', icon: 'banknote' },
-  { label: 'Pengaturan', href: '/admin/settings', icon: 'settings' },
+  { label: "Pengguna", href: "/admin/users", icon: "users" },
+  { label: "Kurir", href: "/admin/couriers", icon: "bike" },
+  { label: "Keuangan", href: "/admin/finance", icon: "banknote" },
+  { label: "Pengaturan", href: "/admin/settings", icon: "settings" },
 ];
 
 interface SidebarProps {
@@ -90,15 +93,15 @@ export default function Sidebar({
       {/* ───── Sidebar ───── */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-gray-100 dark:border-gray-800',
-          'bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out',
-          collapsed ? 'md:w-[72px]' : 'md:w-[260px]',
+          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-gray-100",
+          "bg-white transition-all duration-300 ease-in-out",
+          collapsed ? "md:w-[72px]" : "md:w-[260px]",
           mobileOpen
-            ? 'w-[260px] translate-x-0'
-            : '-translate-x-full md:translate-x-0'
+            ? "w-[260px] translate-x-0"
+            : "-translate-x-full md:translate-x-0",
         )}
       >
-        <div className="flex h-16 items-center justify-between border-b border-gray-100 dark:border-gray-800 px-4">
+        <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
           <div className="flex items-center gap-3">
             {!collapsed && (
               <Image
@@ -114,24 +117,28 @@ export default function Sidebar({
             {/* Collapse toggle — desktop only */}
             <button
               onClick={onToggleCollapse}
-              className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
               title={collapsed ? "Buka Sidebar" : "Tutup Sidebar"}
             >
-              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              {collapsed ? (
+                <ChevronRight size={18} />
+              ) : (
+                <ChevronLeft size={18} />
+              )}
             </button>
             {/* Mobile close button */}
             <button
               onClick={onMobileClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 md:hidden"
             >
-               <X size={18} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
         {/* ───── Navigation ───── */}
         <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4">
-          <div className={cn('mb-3 px-2', collapsed && 'hidden')}>
+          <div className={cn("mb-3 px-2", collapsed && "hidden")}>
             {/* <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
               Menu Utama
             </span> */}
@@ -140,28 +147,33 @@ export default function Sidebar({
           <ul className="space-y-1">
             {menuItems.map((item) => {
               const IconComp = ICON_MAP[item.icon] ?? LayoutDashboard;
-              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+              const isActive =
+                pathname === item.href || pathname?.startsWith(item.href + "/");
 
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     className={cn(
-                      'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
-                      'transition-all duration-200',
+                      "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
+                      "transition-all duration-200",
                       isActive
-                        ? (collapsed ? 'text-emerald-700 dark:text-emerald-400' : 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 text-emerald-700 dark:text-emerald-400 shadow-sm')
-                        : (collapsed ? 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'),
-                      collapsed && 'justify-center px-2'
+                        ? collapsed
+                          ? "text-emerald-700"
+                          : "bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700 shadow-sm"
+                        : collapsed
+                          ? "text-gray-500 hover:text-gray-900"
+                          : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+                      collapsed && "justify-center px-2",
                     )}
                     title={collapsed ? item.label : undefined}
                   >
                     <div
                       className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200',
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
                         isActive
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 dark:shadow-none'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                          ? "bg-emerald-600 text-white shadow-md shadow-emerald-200"
+                          : "bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-gray-600",
                       )}
                     >
                       <IconComp size={16} />
@@ -182,18 +194,17 @@ export default function Sidebar({
         </nav>
 
         {/* ───── Bottom Section ───── */}
-        <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-3 space-y-2">
-
+        <div className="border-t border-gray-100 px-3 py-3 space-y-2">
           {/* Logout */}
           <button
             onClick={onLogout}
             className={cn(
-              'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
-              'text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400',
-              collapsed && 'justify-center px-2'
+              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
+              "text-red-400 transition-colors hover:bg-red-50 hover:text-red-600",
+              collapsed && "justify-center px-2",
             )}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-400">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-400">
               <LogOut size={16} />
             </div>
             {!collapsed && <span>Keluar</span>}

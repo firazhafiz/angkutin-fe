@@ -9,12 +9,13 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
+import { storage } from "@/lib/storage";
 import { RegisterRequest } from "@/types/auth";
 import AuthWrapper from "@/components/auth/AuthWrapper";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
-
+import Cookies from "js-cookie";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 export default function RegisterPage() {
@@ -22,10 +23,33 @@ export default function RegisterPage() {
   const [isLoadingCheck, setIsLoadingCheck] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      router.replace("/dashboard/user");
+    const token = storage.getToken();
+    const user = storage.getUser<any>();
+
+    if (token && user) {
+      try {
+        // Sync to cookies for proxy/middleware if missing
+        if (!Cookies.get("token")) {
+          Cookies.set("token", token, { expires: 7 });
+          Cookies.set("user_role", user.role, { expires: 7 });
+        }
+
+        const role = user.role?.toUpperCase();
+        if (role === "ADMIN") {
+          router.replace("/admin/dashboard");
+        } else if (role === "COURIER") {
+          router.replace("/dashboard/courier");
+        } else {
+          router.replace("/dashboard/user");
+        }
+      } catch (e) {
+        authService.logout();
+        setIsLoadingCheck(false);
+      }
     } else {
+      // If no token, ensure cookies are also gone
+      Cookies.remove("token");
+      Cookies.remove("user_role");
       setIsLoadingCheck(false);
     }
   }, [router]);
@@ -50,18 +74,29 @@ export default function RegisterPage() {
     mutationFn: authService.register,
     onSuccess: (data: any) => {
       console.log("=== REGISTER SUCCESS ===");
-      // Gunakan access_token sesuai dengan struktur API terbaru
-      localStorage.setItem("token", data.access_token);
+      // Save with unified storage helper
+      storage.setToken(data.access_token);
       if (data.refresh_token) {
         localStorage.setItem("refresh_token", data.refresh_token);
       }
-      localStorage.setItem("user", JSON.stringify(data.user));
+      storage.setUser(data.user);
+
+      // Simpan di Cookies untuk Middleware
+      Cookies.set("token", data.access_token, { expires: 7 });
+      Cookies.set("user_role", data.user.role, { expires: 7 });
 
       toast.success("Registrasi Berhasil!", {
         description: "Selamat datang! Mengalihkan ke Dashboard...",
       });
 
-      router.push("/dashboard/user");
+      const role = data.user.role?.toUpperCase();
+      if (role === "ADMIN") {
+        window.location.href = "/admin/dashboard";
+      } else if (role === "COURIER") {
+        window.location.href = "/dashboard/courier";
+      } else {
+        window.location.href = "/dashboard/user";
+      }
     },
     onError: (error: any) => {
       console.error("=== REGISTER ERROR ===");

@@ -86,12 +86,28 @@ export default function AdminDashboardPage() {
     queryFn: () => adminService.getAnalyticsSummary(),
   });
 
+  const { data: couriersRes } = useQuery({
+    queryKey: ['admin', 'couriers'],
+    queryFn: () => adminService.getCouriers(),
+  });
+
   const { data: chartsRes, isLoading: chartsLoading } = useQuery({
     queryKey: ['admin', 'analytics', 'charts', chartRange],
     queryFn: () => adminService.getAnalyticsCharts(chartRange),
   });
 
   const analytics = summaryRes?.data;
+  const rawCouriers = couriersRes?.data || [];
+  
+  // Flatten for accurate counting
+  const courierList = rawCouriers.map((c: any) => ({
+    ...c,
+    name: c.name || c.user?.name || 'Kurir',
+    isOnline: c.isOnline === true || c.user?.isOnline === true,
+  }));
+
+  const activeCouriersCount = courierList.filter(c => c.isOnline).length;
+  
   const barChartData = chartsRes?.data?.barChart || [];
   const areaChartData = chartsRes?.data?.areaChart || [];
 
@@ -147,7 +163,7 @@ export default function AdminDashboardPage() {
         />
         <StatsCard
           label="Kurir Aktif"
-          value={summaryLoading ? '...' : (analytics?.activeCouriers ?? 0)}
+          value={summaryLoading ? '...' : activeCouriersCount}
           icon={Users}
           iconColor="bg-gradient-to-br from-violet-500 to-purple-600"
         />

@@ -2,11 +2,20 @@ import {
   UserRole,
   OrderStatus,
   VehicleType,
+  ScheduleType,
   PaymentMethod,
   WasteCategory,
   TransactionType,
   CancellationReason,
 } from "./enums";
+import { PrismaDecimal } from "@/lib/decimal";
+
+// ==================== GENERIC API RESPONSE ====================
+export interface ApiResponse<T> {
+  status: string;
+  message: string;
+  data: T;
+}
 
 // ==================== USER ====================
 export interface User {
@@ -16,34 +25,102 @@ export interface User {
   phone: string;
   role: UserRole;
   avatarUrl?: string;
+  photoUrl?: string | null;
   createdAt: string;
 }
 
 // ==================== ADDRESS ====================
+/** Address as returned by BE (coordinates in Prisma Decimal format) */
 export interface Address {
   id: string;
   userId: string;
-  label: string; // "Rumah", "Kos", "Kantor"
-  fullAddress: string;
-  lat: number;
-  lng: number;
+  label: string; // "Home", "Kos", "Kantor"
+  district?: string;
+  village?: string;
+  addressDetail: string;
+  latitude: PrismaDecimal | number | null;
+  longitude: PrismaDecimal | number | null;
   isPrimary: boolean;
 }
 
+// ==================== AI SCAN RESULT ====================
+export interface AiResult {
+  id: string;
+  orderId: string | null;
+  volumeEstimation: number;
+  recommendedVehicle: VehicleType;
+  confidenceScore: number;
+  createdAt: string;
+}
+
 // ==================== ORDER ====================
+/** Order as returned by BE */
 export interface Order {
   id: string;
   userId: string;
-  courierId?: string;
+  courierId: string | null;
   addressId: string;
-  address?: Address;
   status: OrderStatus;
-  scheduledAt?: string; // null = instant
-  notes?: string;
-  estimatedVolume?: number; // from AR scan (liters)
-  recommendedVehicle?: VehicleType;
+  scheduleType: ScheduleType;
+  scheduledAt: string | null;
+  note: string | null; // BE uses singular "note"
+  totalCredit: number;
+  totalDebit: number | null;
+  netTotal: number | null;
+  paymentStatus: string | null;
   createdAt: string;
-  updatedAt: string;
+  // Nested relations
+  address?: Address;
+  wasteItems?: WasteItem[];
+  aiResults?: AiResult[];
+  statusHistory?: StatusHistoryEntry[];
+  courier?: CourierWithUser | null;
+  user?: { id: string; name: string; phone: string };
+}
+
+// ==================== STATUS HISTORY ====================
+export interface StatusHistoryEntry {
+  id: string;
+  orderId: string;
+  status: OrderStatus;
+  note: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+}
+
+// ==================== COURIER (as nested in Order response) ====================
+export interface CourierWithUser {
+  id: string;
+  userId: string;
+  vehicleType: VehicleType;
+  vehiclePlate: string;
+  isOnline: boolean;
+  currentLat: PrismaDecimal | number | null;
+  currentLng: PrismaDecimal | number | null;
+  user?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    photoUrl?: string | null;
+  };
+}
+
+// ==================== ORDER OFFER ====================
+export interface OrderOffer {
+  id: string;
+  orderId: string;
+  courierId: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "EXPIRED";
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface CourierMatch {
+  courier: CourierProfile;
+  distanceKm: number;
+  etaMinutes: number;
 }
 
 // ==================== TRIAGE / WEIGHING ====================
@@ -65,6 +142,12 @@ export interface TriageResult {
   totalMutuValue: number; // credit
   totalResiduCost: number; // debit
   netBalance: number; // mutu - residu (positive = user earns)
+}
+
+export interface WeighingSimulation {
+  orderId: string;
+  mutuKg: number;
+  residuKg: number;
 }
 
 // ==================== PAYMENT ====================
@@ -100,7 +183,6 @@ export interface CourierProfile extends User {
   vehicleType: VehicleType;
   vehiclePlate: string;
   isOnline: boolean;
-  rating: number;
   totalDeliveries: number;
 }
 

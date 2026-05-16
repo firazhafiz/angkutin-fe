@@ -1,0 +1,437 @@
+# Angkutin — Order Flow: Implementation Plan (Revised)
+
+## Flow Overview
+
+```mermaid
+flowchart LR
+    A["1. AI Scanner\n(Simulasi)"] --> B["2. Order Form"]
+    B --> C["3. Cari Kurir\n(PostGIS)"]
+    C --> D["4. Pickup & Cancel"]
+    D --> E["5. Timbang\n(Simulasi)"]
+    E --> F["6. Payment\n(Xendit)"]
+    F --> G["7. Summary\n& Deliver"]
+```
+
+---
+
+## Keputusan Teknis (Confirmed)
+
+| Keputusan | Jawaban |
+|-----------|---------|
+| Maps Provider | **Mapbox** |
+| WebSocket | **Socket.IO** |
+| Payment Gateway | **Xendit** (QRIS) |
+| Job Scheduler | **node-cron** |
+| AI Scanner | **Simulasi** (hardcode dari BE, FE terima data) |
+| IoT Timbangan | **Simulasi** (hardcode dari BE, FE animasi angka) |
+| Courier Matching | **PostGIS nearest-first** + `order_offers` queue |
+| OrderStatus enum | Ikut BE, **tanpa** `REASSIGNING` |
+| CourierProfile | FE tetap pakai `vehiclePlate`, **tanpa** `rating`. BE menyesuaikan |
+
+---
+
+## Enum & Type Sync (FE ← BE)
+
+### OrderStatus (ikut BE, tanpa REASSIGNING)
+```typescript
+export enum OrderStatus {
+  CREATED = "CREATED",
+  MATCHED = "MATCHED",
+  ON_GOING = "ON_GOING",
+  ARRIVED = "ARRIVED",
+  WEIGHING = "WEIGHING",
+  WAITING_PAYMENT = "WAITING_PAYMENT",
+  PICKED_UP = "PICKED_UP",
+  DELIVERING = "DELIVERING",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
+}
+```
+
+### ScheduleType (tambah baru, ikut BE)
+```typescript
+export enum ScheduleType {
+  INSTANT = "INSTANT",
+  SCHEDULED = "SCHEDULED",
+}
+```
+
+### VehicleType (ikut BE)
+```typescript
+export enum VehicleType {
+  MOTOR = "MOTOR",
+  PICKUP = "PICKUP",
+  TRUCK = "TRUCK",
+}
+```
+
+### Cancellation Rules (Confirmed)
+| Status | User Cancel? | Courier Cancel? |
+|--------|:---:|:---:|
+| CREATED | ✅ | — |
+| MATCHED | ✅ | ✅ |
+| ON_GOING | ✅ | ✅ |
+| ARRIVED | ❌ | ✅ |
+| WEIGHING | ❌ | ✅ |
+| WAITING_PAYMENT | ❌ | ❌ |
+| PICKED_UP+ | ❌ | ❌ |
+
+> User bisa cancel sampai **ON_GOING**. Kurir bisa cancel sampai **WEIGHING** (sebelum form timbangan di-save).
+
+---
+
+## Courier Matching Flow (PostGIS)
+
+```mermaid
+sequenceDiagram
+    participant U as User (PWA)
+    participant BE as NestJS Backend
+    participant DB as Supabase (PostGIS)
+    participant SR as Supabase Realtime
+    participant C as Courier (PWA)
+
+    Note over DB: Prerequisite: postgis extension enabled,<br/>couriers.location = geography(Point,4326),<br/>GiST index on location
+
+    C->>BE: Update location (setiap 10m movement)
+    BE->>DB: UPDATE couriers SET location
+
+    U->>BE: POST /orders (titik jemput + vehicle)
+    BE->>DB: INSERT orders (status=CREATED)
+    BE->>DB: PostGIS query: ST_DWithin 5km,<br/>status=AVAILABLE, vehicle match,<br/>ORDER BY distance, LIMIT 10
+    DB-->>BE: 10 kandidat kurir terdekat
+    BE->>DB: INSERT order_offers (PENDING, expires_at=+30s)
+    SR-->>C: Realtime subscription trigger
+    C->>C: Modal "Ada Orderan Baru" muncul
+
+    alt Kurir Terima
+        C->>BE: POST /orders/:id/accept
+        BE->>DB: Transaction: cek status masih CREATED?
+        BE->>DB: UPDATE order → MATCHED, courier → BUSY
+        BE->>DB: DELETE sisa order_offers
+        BE-->>U: Socket.IO: order:matched
+        BE-->>C: Socket.IO: order:confirmed
+    else Kurir Tolak / Timeout 30s
+        BE->>DB: Mark offer EXPIRED
+        BE->>BE: Coba kandidat berikutnya
+    end
+```
+
+### BE Database Changes Needed
+```sql
+-- Enable PostGIS
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- Add location column to couriers
+ALTER TABLE couriers ADD COLUMN location geography(Point, 4326);
+
+-- Create spatial index
+CREATE INDEX idx_couriers_location ON couriers USING GIST(location);
+
+-- New table: order_offers
+CREATE TABLE order_offers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders(id),
+  courier_id UUID REFERENCES couriers(id),
+  status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, ACCEPTED, REJECTED, EXPIRED
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
+## Implementation Phases
+
+### Phase 1: Foundation — Enum Sync, Types & Service Layer
+
+#### [MODIFY] [enums.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/types/enums.ts)
+- Sinkronkan `OrderStatus` → UPPERCASE, ikut BE (tanpa REASSIGNING)
+- Sinkronkan `VehicleType` → `MOTOR`, `PICKUP`, `TRUCK` (hapus `TRUCK_LARGE`)
+- Tambah `ScheduleType` enum baru
+- Hapus `CancellationReason.VEHICLE_CAPACITY` (reassignment tidak dipakai)
+
+#### [MODIFY] [models.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/types/models.ts)
+- `Order`: tambah `scheduleType: ScheduleType`
+- `CourierProfile`: hapus `rating`, pertahankan `vehiclePlate`
+- Tambah `OrderOffer` interface (untuk matching flow)
+- Tambah `WeighingSimulation` interface (data hardcode dari BE)
+- Tambah `CourierMatch` interface (untuk radar UI)
+
+#### [MODIFY] [maps.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/types/maps.ts)
+- Definisikan `CourierLocation`, `TrackingPoint` untuk Mapbox integration
+
+#### [MODIFY] [order.service.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/services/order.service.ts)
+- `createOrder()`, `getOrderById()`, `getMyOrders()`, `cancelOrder()`
+
+#### [MODIFY] [courier.service.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/services/courier.service.ts)
+- `toggleOnline()`, `updateLocation()`, `acceptOrder()`, `rejectOrder()`
+- `arriveAtLocation()`, `submitWeighing()`, `startDelivery()`, `completeDelivery()`
+
+#### [MODIFY] [payment.service.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/services/payment.service.ts)
+- `checkBalance()`, `payWithWallet()`, `createQRIS()` (Xendit), `getPaymentStatus()`
+
+#### [MODIFY] [address.service.ts](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/services/address.service.ts)
+- `getMyAddresses()`, `getDefaultAddress()`, `createAddress()`, `updateAddress()`
+
+---
+
+### Phase 2: Order Creation (User Side)
+
+> AI Scanner = **Simulasi**. FE hanya menampilkan UI scanner (kamera placeholder + loading animation), lalu terima data hardcoded dari BE.
+
+#### [MODIFY] [ARScanner.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/ar/ARScanner.tsx)
+- UI kamera simulasi (video placeholder atau canvas dengan overlay grid)
+- Loading animation "Scanning..."
+- Hit BE endpoint `/api/ai/scan` yang return data hardcoded
+- Tampilkan hasil: volume estimasi, rekomendasi kendaraan
+
+#### [MODIFY] [DeviceCheck.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/ar/DeviceCheck.tsx)
+- Cek browser support (simulasi saja, selalu pass)
+
+#### [MODIFY] [VolumeEstimate.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/ar/VolumeEstimate.tsx)
+- Display hasil scan: volume, confidence, rekomendasi kendaraan
+
+#### [MODIFY] [OrderWizard.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/order/OrderWizard.tsx)
+- Multi-step wizard:
+  - **Step 1**: AI Scanner (simulasi) → output rekomendasi
+  - **Step 2**: Form (nama user, alamat default + edit, kendaraan, notes, schedule type)
+  - **Step 3**: Review & Submit
+- Jika SCHEDULED → tampilkan TimePicker (jam saja, hari ini, harus > sekarang)
+
+#### [MODIFY] [SchedulePicker.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/order/SchedulePicker.tsx)
+- Toggle: INSTANT vs SCHEDULED
+- TimePicker muncul jika SCHEDULED (jam:menit only)
+
+#### [MODIFY] [VehicleRecommendation.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/order/VehicleRecommendation.tsx)
+- Card display rekomendasi AI
+- User bisa override pilihan
+
+#### [MODIFY] [AddressPicker.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/maps/AddressPicker.tsx)
+- Tampilkan alamat default
+- Modal ganti alamat / tambah baru dengan Mapbox pin
+
+#### [NEW] `app/dashboard/user/order/page.tsx`
+- Wrapper page yang embed `OrderWizard`
+- Route: `/dashboard/user/order`
+
+---
+
+### Phase 3: Courier Matching & Real-time Tracking
+
+#### Socket.IO Event Contract
+```
+// Server → User
+order:searching       { orderId, radius, attempt }
+order:matched         { orderId, courier: CourierProfile, eta }
+order:no_courier      { orderId, message }
+order:status_change   { orderId, newStatus, timestamp }
+tracking:update       { orderId, courierLat, courierLng, heading, eta }
+
+// Server → Courier (via Supabase Realtime on order_offers)
+courier:new_order     { order, distance, estimatedEarning, expiresIn }
+courier:order_taken   { orderId, message }
+
+// Courier → Server
+courier:accept        { orderId }
+courier:reject        { orderId }
+courier:location      { lat, lng, heading }
+```
+
+#### [MODIFY] [FleetMap.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/maps/FleetMap.tsx)
+- **Radar animation** saat status CREATED (searching)
+- Transisi ke Mapbox map view saat MATCHED
+- **Timeout**: 3 menit tanpa kurir → UI retry/cancel
+- Countdown timer visual
+
+#### [MODIFY] [LiveTracker.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/maps/LiveTracker.tsx)
+- Mapbox map dengan marker kurir bergerak (smooth interpolation)
+- Polyline rute kurir → user
+- ETA badge update setiap 10 detik via Socket.IO
+- Shared: User melihat kurir bergerak, Kurir melihat rute ke tujuan
+
+#### [MODIFY] [MapView.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/maps/MapView.tsx)
+- Base Mapbox GL JS wrapper
+- Props: center, markers[], polyline, onMarkerClick
+
+#### [MODIFY] [IncomingAlert.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/courier/IncomingAlert.tsx)
+- Full-screen overlay modal untuk order masuk
+- 30-second countdown timer
+- Auto-reject jika timeout
+- Sound notification (`new Audio`)
+
+#### [NEW] `app/dashboard/user/order/tracking/[id]/page.tsx`
+- Real-time tracking page (User side)
+- Embed LiveTracker + OrderTimeline
+- Tombol "Batalkan" (visible hanya saat status ≤ ON_GOING)
+
+#### [NEW] `app/dashboard/user/order/search/page.tsx`
+- Radar search UI saat mencari kurir
+- Embed FleetMap
+- Redirect ke tracking page saat matched
+
+#### [NEW] `app/dashboard/courier/missions/[id]/page.tsx`
+- Halaman khusus detail order kurir
+- Different view per status: navigasi → timbang → antar
+- Tombol aksi per stage
+
+#### Scheduled Order (Kurir Side)
+- Setelah MATCHED, order scheduled hanya tampil sebagai card info (tanpa maps)
+- Saat jam tiba, node-cron trigger notifikasi ke kurir via Socket.IO
+- Kurir klik "Berangkat" → status jadi ON_GOING → maps muncul
+- Dari sini flow sama dengan instant
+
+---
+
+### Phase 4: Weighing (Simulasi) & Payment (Xendit)
+
+#### Weighing Simulation Flow
+```mermaid
+sequenceDiagram
+    participant C as Courier (PWA)
+    participant BE as Backend
+    participant U as User (PWA)
+
+    C->>BE: POST /orders/:id/start-weighing
+    BE->>BE: Generate hardcoded weight data
+    BE-->>C: Socket.IO: weighing:data {mutuKg, residuKg}
+    BE-->>U: Socket.IO: weighing:data {mutuKg, residuKg}
+    Note over C,U: FE animasi angka bergerak naik
+
+    C->>C: Pilih jenis sampah mutu (dropdown)
+    C->>C: Opsional: foto bukti residu
+    C->>BE: POST /orders/:id/triage (submit form)
+    BE->>BE: Hitung net balance (mutu - residu)
+
+    alt Residu > Mutu (user bayar)
+        BE-->>U: Socket.IO: payment:required {amount}
+        U->>U: Pilih: Wallet atau QRIS
+    else Mutu >= Residu (user untung)
+        BE->>DB: Credit ke wallet user
+        BE-->>C: Socket.IO: weighing:complete
+    end
+```
+
+#### [MODIFY] [WeighingForm.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/triage/WeighingForm.tsx)
+- **Kurir view (form)**:
+  - Section Sampah Mutu: dropdown jenis (Plastik PET, Kardus, Logam, dll) + berat animasi dari simulasi
+  - Section Sampah Residu: berat animasi + upload foto bukti
+  - Bisa isi salah satu atau keduanya
+  - Tombol Save + Tombol Batalkan (disabled setelah save)
+- **User view (read-only)**:
+  - Display berat mutu dan residu dengan **animasi angka bergerak naik** (counter animation)
+  - Tidak ada input
+
+#### [MODIFY] [PhotoCapture.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/triage/PhotoCapture.tsx)
+- Camera capture atau file upload untuk foto bukti residu
+
+#### [MODIFY] [CancellationModal.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/triage/CancellationModal.tsx)
+- Modal konfirmasi: alasan pembatalan
+- Conditional render berdasarkan role dan status
+
+#### [MODIFY] [DualLedger.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/billing/DualLedger.tsx)
+- 2 kolom: Kredit (Mutu) vs Debit (Residu)
+- Hijau = user untung, Merah = user bayar
+
+#### [MODIFY] [NetBalanceDisplay.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/billing/NetBalanceDisplay.tsx)
+- "Anda mendapat Rp X" atau "Anda perlu membayar Rp X"
+
+#### [MODIFY] [PaymentMethodCard.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/billing/PaymentMethodCard.tsx)
+- Pilihan: **Saldo Wallet** atau **QRIS (Xendit)**
+- Wallet: cek saldo → jika kurang, disable + pesan fallback ke QRIS
+- QRIS: hit Xendit API → tampilkan QR → polling status
+
+#### [MODIFY] [PaymentTimeout.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/billing/PaymentTimeout.tsx)
+- Countdown timer pembayaran
+- Auto-handle jika expired
+
+---
+
+### Phase 5: Summary, Delivery & Validation
+
+#### [MODIFY] [TriageSummary.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/triage/TriageSummary.tsx)
+- Summary lengkap: mutu items, residu items, net balance, payment status
+- **Kurir view**: tombol "Mulai Pengantaran" → PICKED_UP → DELIVERING
+- **User view**: tombol "Lihat Detail" → redirect ke order tracking page
+
+#### [MODIFY] [OrderTimeline.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/order/OrderTimeline.tsx)
+- Vertical timeline: setiap OrderStatus dengan timestamp
+- Status aktif = animasi pulse
+
+#### [MODIFY] [OrderCard.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/order/OrderCard.tsx)
+- Card ringkasan order untuk list/history view
+
+#### [MODIFY] [QRGenerator.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/courier/QRGenerator.tsx)
+- Generate QR dari orderId (untuk validasi di terminal/gudang)
+
+#### [MODIFY] [MissionCard.tsx](file:///d:/Firaz/Lomba/Web/TechSprint/angkutin-fe/components/courier/MissionCard.tsx)
+- Card order aktif di dashboard kurir (shortcut ke halaman detail)
+
+#### [NEW] `app/dashboard/user/order/summary/[id]/page.tsx`
+- Halaman summary order setelah timbangan selesai
+
+#### [NEW] `app/dashboard/user/history/page.tsx`
+- Riwayat semua order user
+
+---
+
+## Backend API Endpoints
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| `POST` | `/api/orders` | Create order |
+| `GET` | `/api/orders/:id` | Get order detail |
+| `GET` | `/api/orders/mine` | Get my orders |
+| `PATCH` | `/api/orders/:id/cancel` | Cancel order (cek rules) |
+| `POST` | `/api/ai/scan` | Simulasi AI scanner (hardcode) |
+| `PATCH` | `/api/courier/status` | Toggle online/offline |
+| `POST` | `/api/courier/location` | Update GPS → PostGIS |
+| `POST` | `/api/orders/:id/accept` | Kurir accept (race condition safe) |
+| `POST` | `/api/orders/:id/reject` | Kurir reject |
+| `POST` | `/api/orders/:id/arrive` | Kurir sampai lokasi |
+| `POST` | `/api/orders/:id/start-weighing` | Trigger simulasi timbangan |
+| `POST` | `/api/orders/:id/triage` | Submit form timbangan |
+| `POST` | `/api/orders/:id/depart` | Kurir berangkat (scheduled) |
+| `POST` | `/api/orders/:id/deliver` | Mulai delivery ke gudang |
+| `POST` | `/api/orders/:id/complete` | Selesai |
+| `POST` | `/api/payments/wallet` | Bayar via wallet |
+| `POST` | `/api/payments/qris` | Generate QRIS (Xendit) |
+| `GET` | `/api/payments/:id/status` | Cek status pembayaran |
+| `GET` | `/api/addresses` | List alamat user |
+| `POST` | `/api/addresses` | Tambah alamat |
+| `PUT` | `/api/addresses/:id` | Update alamat |
+
+### Socket.IO Namespaces
+| Namespace | Events | Deskripsi |
+|-----------|--------|-----------|
+| `/orders` | `order:*` | Order lifecycle events |
+| `/tracking` | `tracking:update` | Courier GPS realtime |
+| `/weighing` | `weighing:data`, `weighing:complete` | Simulasi timbangan |
+| `/payments` | `payment:required`, `payment:status` | Payment status |
+
+---
+
+## Dependencies to Install (FE)
+
+```bash
+npm install mapbox-gl @mapbox/mapbox-gl-directions socket.io-client qrcode.react
+npm install -D @types/mapbox-gl
+```
+
+---
+
+## Verification Plan
+
+### Per Phase
+| Phase | Verifikasi |
+|-------|-----------|
+| 1 | Enum match BE, services compile, types complete |
+| 2 | Order wizard flow E2E (scan → form → submit) |
+| 3 | 2 browser: user search → kurir accept → live tracking |
+| 4 | Weighing animation + payment QRIS/wallet |
+| 5 | Summary → delivery → QR validation |
+
+### Manual Testing
+- Test radar search timeout (3 menit)
+- Test cancellation di setiap status boundary
+- Test payment fallback (wallet insufficient → QRIS)
+- Test scheduled order trigger

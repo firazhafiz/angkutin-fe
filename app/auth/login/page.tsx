@@ -14,7 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import { LoginRequest } from "@/types/auth";
 import { toast } from "sonner";
-
+import Cookies from "js-cookie";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 export default function LoginPage() {
@@ -24,19 +24,33 @@ export default function LoginPage() {
   useEffect(() => {
     const token = storage.getToken();
     const user = storage.getUser<any>();
+
     if (token && user) {
       try {
-        if (user.role === "ADMIN" || user.role === "admin") {
+        // Sync to cookies for proxy/middleware if missing
+        if (!Cookies.get("token")) {
+          Cookies.set("token", token, { expires: 7 });
+          Cookies.set("user_role", user.role, { expires: 7 });
+        }
+
+        const role = user.role?.toUpperCase();
+        if (role === "ADMIN") {
           router.replace("/admin/dashboard");
-        } else if (user.role === "COURIER") {
+        } else if (role === "COURIER") {
           router.replace("/dashboard/courier");
         } else {
           router.replace("/dashboard/user");
         }
       } catch (e) {
+        localStorage.clear();
+        Cookies.remove("token");
+        Cookies.remove("user_role");
         setIsLoadingCheck(false);
       }
     } else {
+      // If no token in localStorage, ensure cookies are also gone
+      Cookies.remove("token");
+      Cookies.remove("user_role");
       setIsLoadingCheck(false);
     }
   }, [router]);
@@ -62,19 +76,23 @@ export default function LoginPage() {
       localStorage.setItem("refresh_token", data.refresh_token);
       storage.setUser(data.user);
 
+      // Simpan di Cookies untuk Middleware (Next.js)
+      Cookies.set("token", data.access_token, { expires: 7 });
+      Cookies.set("user_role", data.user.role, { expires: 7 });
 
       // Show proper toast
       toast.success("Login Berhasil!", {
         description: "Mengalihkan ke Dashboard...",
       });
-      
-      // Role-based redirection
-      if (data.user.role === "ADMIN") {
-        router.push("/admin/dashboard");
-      } else if (data.user.role === "COURIER") {
-        router.push("/dashboard/courier");
+
+      // Role-based redirection using window.location for full refresh
+      const role = data.user.role?.toUpperCase();
+      if (role === "ADMIN") {
+        window.location.href = "/admin/dashboard";
+      } else if (role === "COURIER") {
+        window.location.href = "/dashboard/courier";
       } else {
-        router.push("/dashboard/user");
+        window.location.href = "/dashboard/user";
       }
     },
 
@@ -82,16 +100,16 @@ export default function LoginPage() {
       // ERROR LOGGER
       console.error("=== AUTH ERROR ===");
       let message =
-        error.response?.data?.message || 
+        error.response?.data?.message ||
         error.response?.data?.error ||
         error.response?.data?.errors?.[0]?.message ||
         "Email atau password salah!";
-      
+
       // If the message is just "Unauthorized", translate it to something more user-friendly
       if (message.toLowerCase() === "unauthorized") {
         message = "Email atau password salah!";
       }
-      
+
       toast.error("Gagal Login", {
         description: message,
       });

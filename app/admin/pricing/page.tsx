@@ -9,6 +9,7 @@ import { WasteCategory } from '@/types/enums';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { cn } from '@/lib/cn';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '@/services/admin.service';
@@ -89,11 +90,13 @@ export default function PricingPage() {
     mutationFn: adminService.deleteWasteType,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['waste-types'] });
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
       toast.success('Data berhasil dihapus');
     },
     onError: (error: any) => {
       const msg = error.response?.data?.message || error.response?.data?.error || 'Gagal menghapus data';
       toast.error(msg);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     },
   });
 
@@ -101,6 +104,17 @@ export default function PricingPage() {
   // Modal states
   const [isMutuModalOpen, setIsMutuModalOpen] = useState(false);
   const [isResiduModalOpen, setIsResiduModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'mutu' | 'residu';
+    id: string | null;
+    label: string;
+  }>({
+    isOpen: false,
+    type: 'mutu',
+    id: null,
+    label: '',
+  });
 
   // Residu form state
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
@@ -134,15 +148,27 @@ export default function PricingPage() {
   };
 
   // -- Delete Logic
-  const deleteMutu = (id: string) => {
-    if (confirm('Yakin ingin menghapus komoditas ini?')) {
-      deleteWasteMutation.mutate(id);
-    }
+  const deleteMutu = (id: string, label: string) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'mutu',
+      id,
+      label,
+    });
   };
 
-  const deleteResidu = (id: string) => {
-    if (confirm('Yakin ingin menghapus tarif residu ini?')) {
-      deleteWasteMutation.mutate(id);
+  const deleteResidu = (id: string, label: string) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'residu',
+      id,
+      label,
+    });
+  };
+
+  const executeConfirm = () => {
+    if (confirmModal.id) {
+      deleteWasteMutation.mutate(confirmModal.id);
     }
   };
 
@@ -276,7 +302,7 @@ export default function PricingPage() {
                 <Pencil size={14} />
               </button>
               <button
-                onClick={() => deleteMutu(item.id)}
+                onClick={() => deleteMutu(item.id, item.name)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
                 title="Hapus"
               >
@@ -394,7 +420,7 @@ export default function PricingPage() {
                 <Pencil size={14} />
               </button>
               <button
-                onClick={() => deleteResidu(item.id)}
+                onClick={() => deleteResidu(item.id, vehicleTarifDefaults[item.name]?.label || item.name)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
                 title="Hapus"
               >
@@ -575,6 +601,18 @@ export default function PricingPage() {
         </form>
       </Modal>
 
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={executeConfirm}
+        title={confirmModal.type === 'mutu' ? 'Hapus Komoditas' : 'Hapus Tarif Residu'}
+        message={`Apakah Anda yakin ingin menghapus ${confirmModal.label} secara permanen?`}
+        confirmText="Hapus"
+        type="danger"
+        icon="delete"
+        isLoading={deleteWasteMutation.isPending}
+      />
     </div>
   );
 }

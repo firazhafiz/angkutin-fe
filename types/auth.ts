@@ -49,3 +49,28 @@ export interface ProfileResponse {
   message: string;
   data: User;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  status: string;
+  message: string;
+  data: {
+    message: string;
+  };
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  email: string;
+  newPassword: string;
+  newPassword_confirmation?: string;
+}
+
+export interface ResetPasswordResponse {
+  status: string;
+  message: string;
+  data: any;
+}
