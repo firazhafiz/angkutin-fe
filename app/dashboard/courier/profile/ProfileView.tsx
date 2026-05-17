@@ -25,6 +25,8 @@ import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { courierService } from "@/services/courier.service";
 import LogoutModal from "@/components/dashboard/LogoutModal";
+import { OrderStatus } from "@/types/enums";
+import type { Order } from "@/types/models";
 
 // Reusing User sections for now (they should be generic enough or we can duplicate if needed)
 import PersonalInfoSection from "@/app/dashboard/user/profile/sections/PersonalInfoSection";
@@ -93,9 +95,17 @@ export default function ProfileView() {
     queryFn: courierService.getProfile,
   });
 
+  const { data: ordersData } = useQuery({
+    queryKey: ["courierOrders"],
+    queryFn: () => courierService.getMyOrders(),
+  });
+
   const courierData = courierProfileRes?.data;
   const userData = courierData?.user;
   const isOnline = courierData?.isOnline ?? false;
+  const allOrders: Order[] = ordersData?.data || [];
+  const completedOrders = allOrders.filter((o) => o.status === OrderStatus.COMPLETED);
+  const totalCompletedOrders = completedOrders.length;
 
   const statusMutation = useMutation({
     mutationFn: (newStatus: boolean) => courierService.updateStatus(newStatus),
@@ -123,7 +133,7 @@ export default function ProfileView() {
           year: "numeric",
         })
       : "April 2024",
-    totalOrders: 156, // Mock courier stats
+    totalOrders: totalCompletedOrders, // Dynamic completed courier stats
     totalPoints: 4200, // Mock points
     totalBalance: walletBalance,
     tier: "Gold Courier",

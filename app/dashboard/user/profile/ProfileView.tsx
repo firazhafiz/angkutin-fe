@@ -26,6 +26,9 @@ import SecuritySection from "./sections/SecuritySection";
 import NotificationSection from "./sections/NotificationSection";
 import { userService } from "@/services/user.service";
 import LogoutModal from "@/components/dashboard/LogoutModal";
+import { orderService } from "@/services/order.service";
+import { OrderStatus } from "@/types/enums";
+import type { Order } from "@/types/models";
 
 type ActiveSection =
   | "overview"
@@ -94,7 +97,32 @@ export default function ProfileView() {
     queryFn: userService.getProfile,
   });
 
+  const { data: ordersData } = useQuery({
+    queryKey: ["userOrders"],
+    queryFn: () => orderService.getOrders(),
+  });
+
   const userData = profileData?.data;
+  const allOrders: Order[] = ordersData?.data || [];
+  const completedOrders = allOrders.filter((o) => o.status === OrderStatus.COMPLETED);
+  const totalCompletedOrders = completedOrders.length;
+
+  let calculatedPoints = 0;
+  completedOrders.forEach((order) => {
+    let orderPoints = 0;
+    if (order.pointTransactions && order.pointTransactions.length > 0) {
+      order.pointTransactions.forEach((pt) => {
+        orderPoints += pt.points;
+      });
+    } else if (order.wasteItems && order.wasteItems.length > 0) {
+      order.wasteItems.forEach((item) => {
+        if (item.wasteType?.category === "MUTU") {
+          orderPoints += Number(item.weight) || 0;
+        }
+      });
+    }
+    calculatedPoints += Math.floor(orderPoints);
+  });
 
   const user = {
     name: userData?.name || "User",
@@ -102,8 +130,8 @@ export default function ProfileView() {
     phone: userData?.phone || "-",
     photoUrl: userData?.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData?.name || "User"}`,
     joinDate: userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : "...",
-    totalOrders: 24, // Mock
-    totalPoints: 2840, // Mock
+    totalOrders: totalCompletedOrders,
+    totalPoints: calculatedPoints,
     totalBalance: walletBalance,
     tier: "Silver",
   };
