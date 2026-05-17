@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn";
 
 export default function UserWalletPage() {
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showAllTx, setShowAllTx] = useState(false);
 
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
     queryKey: ["walletBalance"],
@@ -39,6 +40,10 @@ export default function UserWalletPage() {
   const transactions = (txData?.data || []).filter((tx) =>
     ["PENDING", "SUCCESS", "FAILED"].includes(tx.status),
   );
+
+  const displayedTransactions = showAllTx
+    ? transactions
+    : transactions.slice(0, 5);
 
   // Calculate totals from transactions
   const totalIncome = transactions
@@ -207,62 +212,76 @@ export default function UserWalletPage() {
                   </p>
                 </div>
               ) : (
-                transactions.map((tx) => {
-                  const badge = getStatusBadge(tx.status);
-                  const isIncome = tx.type === "CREDIT";
-                  return (
-                    <div
-                      key={tx.id}
-                      className="group bg-white p-5 rounded-xl border border-gray-50 hover:border-primary/20 transition-all flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={cn(
-                            "w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
-                            isIncome
-                              ? "bg-green-50 text-green-600"
-                              : "bg-red-50 text-red-600",
-                          )}
-                        >
-                          {isIncome ? (
-                            <Plus size={20} />
-                          ) : (
-                            <ArrowUpRight size={20} />
-                          )}
+                <>
+                  {displayedTransactions.map((tx) => {
+                    const badge = getStatusBadge(tx.status);
+                    const isIncome = tx.type === "CREDIT";
+                    return (
+                      <div
+                        key={tx.id}
+                        className="group bg-white p-5 rounded-xl border border-gray-50 hover:border-primary/20 transition-all flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={cn(
+                              "w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110",
+                              isIncome
+                                ? "bg-green-50 text-green-600"
+                                : "bg-red-50 text-red-600",
+                            )}
+                          >
+                            {isIncome ? (
+                              <Plus size={20} />
+                            ) : (
+                              <ArrowUpRight size={20} />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-dark text-sm leading-none mb-1.5">
+                              {
+                                (tx.description || tx.referenceType).split(
+                                  " - ",
+                                )[0]
+                              }
+                            </h4>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                              {tx.referenceType}
+                              <span className="w-1 h-1 rounded-full bg-gray-200" />
+                              {formatDate(tx.createdAt)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-dark text-sm leading-none mb-1.5">
-                            {(tx.description || tx.referenceType).split(" - ")[0]}
-                          </h4>
-                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            {tx.referenceType}
-                            <span className="w-1 h-1 rounded-full bg-gray-200" />
-                            {formatDate(tx.createdAt)}
+                        <div className="text-right">
+                          <p
+                            className={cn(
+                              "font-black text-sm tracking-tight mb-1",
+                              isIncome ? "text-green-600" : "text-red-600",
+                            )}
+                          >
+                            {isIncome ? "+" : "-"} Rp{" "}
+                            {tx.amount.toLocaleString("id-ID")}
                           </p>
+                          <span
+                            className={cn(
+                              "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                              badge.color,
+                            )}
+                          >
+                            {badge.label}
+                          </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p
-                          className={cn(
-                            "font-black text-sm tracking-tight mb-1",
-                            isIncome ? "text-green-600" : "text-red-600",
-                          )}
-                        >
-                          {isIncome ? "+" : "-"} Rp{" "}
-                          {tx.amount.toLocaleString("id-ID")}
-                        </p>
-                        <span
-                          className={cn(
-                            "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                            badge.color,
-                          )}
-                        >
-                          {badge.label}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                  {!showAllTx && transactions.length > 5 && (
+                    <button
+                      onClick={() => setShowAllTx(true)}
+                      className="w-full mt-4 py-5 text-xs font-bold text-primary  rounded-full border border-primary border-dashed transition-colors uppercase tracking-widest"
+                    >
+                      Lihat Semua Transaksi
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

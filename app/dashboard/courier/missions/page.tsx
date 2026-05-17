@@ -23,10 +23,7 @@ import { courierService } from "@/services/courier.service";
 import { OrderStatus } from "@/types/enums";
 
 // Map BE status to display label & style
-const STATUS_MAP: Record<
-  string,
-  { label: string; color: string }
-> = {
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
   [OrderStatus.CREATED]: {
     label: "Menunggu",
     color: "bg-amber-50 text-amber-600 border-amber-100",
@@ -124,7 +121,9 @@ export default function CourierHistoryPage() {
   // Filter by tab
   const tabStatuses = TAB_FILTER[activeTab];
   const filteredOrders = orders
-    .filter((o: any) => tabStatuses.length === 0 || tabStatuses.includes(o.status))
+    .filter(
+      (o: any) => tabStatuses.length === 0 || tabStatuses.includes(o.status),
+    )
     .filter(
       (o: any) =>
         !search ||
@@ -233,9 +232,7 @@ export default function CourierHistoryPage() {
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 size={32} className="text-primary animate-spin mb-3" />
-            <p className="text-sm text-gray-400 font-medium">
-              Memuat order...
-            </p>
+            <p className="text-sm text-gray-400 font-medium">Memuat order...</p>
           </div>
         )}
 
@@ -291,10 +288,7 @@ export default function CourierHistoryPage() {
                           <MapPin size={14} className="text-gray-400" />
                           <span className="truncate">
                             {order.address.addressDetail ||
-                              [
-                                order.address.village,
-                                order.address.district,
-                              ]
+                              [order.address.village, order.address.district]
                                 .filter(Boolean)
                                 .join(", ")}
                           </span>
@@ -304,9 +298,6 @@ export default function CourierHistoryPage() {
                         <div className="flex items-center gap-2">
                           {order.user ? (
                             <>
-                              <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-[10px] font-black border border-white">
-                                {order.user.name?.charAt(0) || "U"}
-                              </div>
                               <span className="text-xs font-bold text-dark">
                                 {order.user.name}
                               </span>

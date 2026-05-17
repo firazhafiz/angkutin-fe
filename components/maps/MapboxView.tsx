@@ -413,6 +413,10 @@ export default function MapboxView({
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .mapboxgl-ctrl-logo { display: none !important; }
+        .mapboxgl-ctrl-attrib { display: none !important; }
+      `}} />
       <div ref={mapContainer} className="w-full h-full" />
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100">

@@ -77,7 +77,18 @@ export interface Order {
   aiResults?: AiResult[];
   statusHistory?: StatusHistoryEntry[];
   courier?: CourierWithUser | null;
-  user?: { id: string; name: string; phone: string };
+  user?: { id: string; name: string; phone: string; photoUrl?: string | null };
+  pointTransactions?: PointTransaction[];
+}
+
+export interface PointTransaction {
+  id: string;
+  userId: string;
+  orderId: string | null;
+  points: number;
+  mutuWeight: number | null;
+  description: string | null;
+  createdAt: string;
 }
 
 // ==================== STATUS HISTORY ====================

@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Zap,
   Loader2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { OrderStatus } from "@/types/enums";
@@ -51,6 +52,7 @@ export default function CourierDashboard() {
   const queryClient = useQueryClient();
   const [dismissedOfferIds, setDismissedOfferIds] = useState<string[]>([]);
   const [acceptedOfferIds, setAcceptedOfferIds] = useState<string[]>([]);
+  const [showTipsModal, setShowTipsModal] = useState(false);
 
   // Fetch Courier Profile
   const { data: courierProfileData, isLoading: isProfileLoading } = useQuery({
@@ -452,7 +454,10 @@ export default function CourierDashboard() {
                         Pusat untuk efisiensi waktu.
                       </p>
                     </div>
-                    <button className="flex items-center gap-2 text-xs font-black text-secondary uppercase tracking-widest">
+                    <button
+                      onClick={() => setShowTipsModal(true)}
+                      className="flex items-center gap-2 text-xs font-black text-secondary uppercase tracking-widest cursor-pointer hover:opacity-80 transition-opacity"
+                    >
                       Baca Selengkapnya <ArrowRight size={14} />
                     </button>
                   </div>
@@ -474,15 +479,15 @@ export default function CourierDashboard() {
                     Detail
                   </button>
                 </div>
-                <div className="divide-y divide-gray-50 overflow-y-auto flex-1 scrollbar-hide">
+                <div className="divide-y divide-gray-50 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                   {historyOrders.length > 0 ? (
-                    historyOrders.map((order) => {
+                    historyOrders.slice(0, 5).map((order) => {
                       const isCancelled = order.status === OrderStatus.CANCELLED;
                       return (
                         <div
                           key={order.id}
                           className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group"
-                          onClick={() => (window.location.href = `/dashboard/courier/missions/${order.id}`)}
+                          onClick={() => (window.location.href = `/dashboard/courier/history/${order.id}`)}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-black text-dark">
@@ -499,7 +504,16 @@ export default function CourierDashboard() {
                             <Clock size={12} />
                             <span>{new Date(order.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
                             <span className="mx-1">•</span>
-                            <span className="text-dark font-bold">{order.user?.name || "Customer"}</span>
+                            <span className="text-dark font-bold flex items-center gap-1.5">
+                              <span className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-white text-[8px] shrink-0">
+                                <img
+                                  src={order.user?.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${order.user?.name || "Customer"}`}
+                                  alt="Customer Avatar"
+                                  className="w-full h-full object-cover"
+                                />
+                              </span>
+                              {order.user?.name || "Customer"}
+                            </span>
                           </div>
                           {order.address && (
                             <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-1">
@@ -519,8 +533,81 @@ export default function CourierDashboard() {
               </div>
             </div>
           </div>
-        </div>
       </div>
+      </div>
+
+      {/* Premium Tips Modal */}
+      {showTipsModal && (
+        <div className="fixed inset-0 z-[100] bg-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden border border-gray-100">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-primary/5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                  <BookOpen size={18} />
+                </div>
+                <h3 className="text-sm font-extrabold text-dark uppercase tracking-widest">
+                  Tips Hari Ini
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowTipsModal(false)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-dark transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-xl font-black text-dark tracking-tight">
+                  Meningkatkan Kecepatan Angkut
+                </h4>
+                <p className="text-sm text-gray-500 leading-relaxed font-semibold">
+                  Gunakan jalur alternatif saat jam sibuk di area Surabaya Pusat untuk efisiensi waktu.
+                </p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Panduan Lengkap Efisiensi Rute:
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Hindari Jalur Utama Sibuk</strong>: Hindari Jalan Raya Darmo dan Jalan Ahmad Yani pada jam berangkat kerja (07:00 - 09:00 WIB) dan jam pulang kerja (16:30 - 18:30 WIB).
+                    </p>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Manfaatkan Rute Penghubung</strong>: Gunakan jalan tikus seperti Jl. Kutai, Jl. Pandegiling, atau Jl. Kupang Segunting untuk memotong kemacetan area Surabaya Tengah.
+                    </p>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Periksa Navigasi Sebelum Jalan</strong>: Selalu buka Google Maps atau Waze sebelum menekan status "Menuju Lokasi" untuk memastikan tidak ada penutupan jalan mendadak atau kecelakaan.
+                    </p>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowTipsModal(false)}
+                className="px-6 py-2.5 rounded-full bg-dark text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

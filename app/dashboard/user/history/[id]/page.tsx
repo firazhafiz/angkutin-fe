@@ -14,8 +14,9 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   
+  const shortId = id.slice(0, 8).toUpperCase();
   return {
-    title: `Order ${id}`,
+    title: `Riwayat Order #${shortId}`,
     description: `Details and receipt for your Angkutin order ${id}. Track your waste management journey.`,
   };
 }

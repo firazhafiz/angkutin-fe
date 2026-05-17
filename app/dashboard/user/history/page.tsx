@@ -159,8 +159,7 @@ export default function OrderHistoryPage() {
     (o) => o.status === OrderStatus.COMPLETED,
   ).length;
   const activeOrders = orders.filter(
-    (o) =>
-      ![OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(o.status),
+    (o) => ![OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(o.status),
   ).length;
 
   return (
@@ -296,7 +295,9 @@ export default function OrderHistoryPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black text-primary">
-                          {formatCurrency(order.netTotal ?? order.totalCredit ?? 0)}
+                          {formatCurrency(
+                            order.netTotal ?? order.totalCredit ?? 0,
+                          )}
                         </p>
                         <p className="text-[10px] font-bold text-gray-400 capitalize">
                           {order.scheduleType.toLowerCase()}
@@ -324,11 +325,8 @@ export default function OrderHistoryPage() {
                         <div className="flex items-center gap-2">
                           {order.courier?.user ? (
                             <>
-                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-black border border-white">
-                                {order.courier.user.name?.charAt(0) || "K"}
-                              </div>
                               <span className="text-[10px] font-bold text-dark">
-                                Kurir: {order.courier.user.name}
+                                {order.courier.user.name}
                               </span>
                             </>
                           ) : (

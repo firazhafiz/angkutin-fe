@@ -89,6 +89,8 @@ function buildTimeline(order: Order) {
       time: formatTime(entry.createdAt),
       date: formatDate(entry.createdAt),
       completed: true,
+      photoUrl: entry.photoUrl,
+      note: entry.note,
     }));
   }
 
@@ -101,6 +103,8 @@ function buildTimeline(order: Order) {
     time: idx === 0 ? formatTime(order.createdAt) : "-",
     date: idx === 0 ? formatDate(order.createdAt) : "",
     completed: idx <= currentIdx,
+    photoUrl: null,
+    note: null,
   }));
 
   if (isCancelled) {
@@ -110,12 +114,16 @@ function buildTimeline(order: Order) {
         time: formatTime(order.createdAt),
         date: formatDate(order.createdAt),
         completed: true,
+        photoUrl: null,
+        note: null,
       },
       {
         status: "Pesanan Dibatalkan",
         time: formatTime(order.createdAt),
         date: "",
         completed: true,
+        photoUrl: null,
+        note: null,
       },
     ];
   }
@@ -266,14 +274,32 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     <p className="text-xs font-bold text-gray-400 flex items-center gap-1">
                       <Calendar size={10} /> {step.time}
                     </p>
+                    {step.note && !step.note.includes('{"') && (
+                      <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                        {step.note}
+                      </p>
+                    )}
+                    {step.photoUrl && (
+                      <div className="mt-3 relative w-32 h-32 rounded-xl overflow-hidden border border-gray-200">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={step.photoUrl}
+                          alt="Bukti"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Waste Items */}
-            <div className="pt-6">
-              <div className="flex items-center justify-between mb-6">
+          {/* Right Column: Courier & Receipt (5 cols) */}
+          <div className="lg:col-span-5 space-y-10">
+            {/* Order Summary */}
+            <div className="space-y-6 ">
+              <div className="flex items-center justify-between">
                 <h3 className="font-black text-dark text-sm uppercase tracking-widest flex items-center gap-2">
                   <Package size={18} className="text-primary" />
                   Rincian Pengangkutan
@@ -284,7 +310,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     : "BELUM ADA"}
                 </div>
               </div>
-              <div className="flex flex-col md:flex-row gap-6 items-start">
+              <div className="flex flex-col gap-6 items-start">
                 <div className="space-y-2 w-full">
                   {allItems.length > 0 ? (
                     allItems.map((item, index) => (
@@ -338,7 +364,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                 </div>
 
                 {(order.totalCredit > 0 || order.netTotal) && (
-                  <div className="w-full mt-6 p-6 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
+                  <div className="w-full mt-2 p-6 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
                         Net Total
@@ -350,12 +376,26 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     <TrendingUp size={32} className="text-primary/20" />
                   </div>
                 )}
+
+                {order.status === OrderStatus.COMPLETED && (order.pointTransactions?.length || 0) > 0 && (
+                  <div className="w-full mt-2 p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <TrendingUp size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-800">Point Loyalty Diterima</p>
+                        <p className="text-[10px] text-emerald-600">Berhasil ditambahkan ke akun Anda</p>
+                      </div>
+                    </div>
+                    <p className="text-xl font-black text-emerald-600">
+                      +{order.pointTransactions?.reduce((sum, tx) => sum + tx.points, 0)} pts
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Right Column: Courier & Receipt (5 cols) */}
-          <div className="lg:col-span-5 space-y-10">
             {/* Map Preview */}
             <div className="relative group">
               <div className="relative h-72 rounded-2xl overflow-hidden border border-primary/10 bg-[#cad9d7] shadow-inner pointer-events-none">
@@ -374,7 +414,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     },
                   ]}
                 />
-                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50 pointer-events-auto shadow-sm">
+                <div className="absolute bottom-4 left-4 right-4 bg-white/60 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50 pointer-events-auto">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
                     <MapPin size={20} />
                   </div>
@@ -401,8 +441,12 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
             <div className="space-y-6">
               <div className="flex items-center gap-5">
                 <div className="relative">
-                  <div className="w-19 h-19 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl ring-2 ring-primary/60">
-                    {order.courier?.user?.name?.charAt(0) || "?"}
+                  <div className="w-19 h-19 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl ring-2 ring-primary/60 overflow-hidden">
+                    <img
+                      src={order.courier?.user?.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${order.courier?.user?.name || "Kurir"}`}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
                 <div className="flex-1">
@@ -494,10 +538,10 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
 
               {/* Action Strip */}
               <div className="flex gap-4">
-                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
+                <button className="flex-1 py-4 bg-white border border-primary/60 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
                   <Download size={16} className="text-primary" /> Struk PDF
                 </button>
-                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
+                <button className="flex-1 py-4 bg-white border border-primary/60 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
                   <HelpCircle size={16} className="text-primary" /> Bantuan
                 </button>
               </div>

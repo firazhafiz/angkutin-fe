@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import WalletCard from "@/components/dashboard/WalletCard";
 import StatCard from "@/components/dashboard/StatCard";
@@ -25,6 +25,10 @@ import {
   Loader2,
   Package,
   AlertCircle,
+  X,
+  MessageSquare,
+  Phone,
+  Mail,
 } from "lucide-react";
 
 // Status yang menandakan order sedang aktif (belum selesai/batal)
@@ -51,6 +55,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function UserDashboard() {
+  const [showTipsModal, setShowTipsModal] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [showCSModal, setShowCSModal] = useState(false);
+
   const { data: walletData, isLoading: isWalletLoading } = useQuery({
     queryKey: ["walletBalance"],
     queryFn: walletService.getBalance,
@@ -76,43 +84,62 @@ export default function UserDashboard() {
 
   // Find active order (first non-completed/cancelled)
   const allOrders: Order[] = ordersData?.data || [];
-  const activeOrder = allOrders.find((o) =>
-    ACTIVE_STATUSES.includes(o.status),
-  );
+  const activeOrder = allOrders.find((o) => ACTIVE_STATUSES.includes(o.status));
 
   // Filter history orders (Completed/Cancelled)
   const historyOrders = allOrders
-    .filter((o) => o.status === OrderStatus.COMPLETED || o.status === OrderStatus.CANCELLED)
-    .map(o => ({
-      id: o.id,
-      type: "ORDER",
-      status: o.status,
-      title: o.status === OrderStatus.COMPLETED ? "Angkut Sampah" : "Pesanan Dibatalkan",
-      amount: o.totalCredit || 0,
-      createdAt: o.createdAt,
-      isIncome: o.status === OrderStatus.COMPLETED
-    }));
-  
+    .filter(
+      (o) =>
+        o.status === OrderStatus.COMPLETED ||
+        o.status === OrderStatus.CANCELLED,
+    )
+    .map((o) => {
+      const netTotal = o.status === OrderStatus.COMPLETED ? (o.netTotal || 0) : 0;
+      return {
+        id: o.id,
+        type: "ORDER",
+        status: o.status,
+        title: `Order #${o.id.slice(0, 6).toUpperCase()}`,
+        subtitle: 
+          o.status === OrderStatus.COMPLETED
+            ? "Selesai"
+            : "Dibatalkan",
+        amount: Math.abs(netTotal),
+        createdAt: o.createdAt,
+        isIncome: netTotal >= 0 && o.status === OrderStatus.COMPLETED,
+      };
+    });
+
   // Filter and limit transactions for the dashboard
   const transactionItems = (txData?.data || [])
-    .filter((tx) => ["SUCCESS"].includes(tx.status))
-    .map(tx => {
+    .filter(
+      (tx) => 
+        tx.status === "SUCCESS" && 
+        (tx.referenceType === "TOPUP" || tx.referenceType === "WITHDRAWAL")
+    )
+    .map((tx) => {
       const isWithdrawal = tx.referenceType === "WITHDRAWAL";
       return {
         id: tx.id,
         type: "TRANSACTION",
         status: tx.status,
-        title: isWithdrawal ? "Tarik Saldo" : (tx.description || tx.referenceType).split(" - ")[0],
+        title: isWithdrawal
+          ? `Tarik Saldo #${tx.id.slice(0, 6).toUpperCase()}`
+          : `Isi Saldo #${tx.id.slice(0, 6).toUpperCase()}`,
+        subtitle: "Berhasil",
         amount: tx.amount,
         createdAt: tx.createdAt,
-        isIncome: tx.type === "CREDIT"
+        isIncome: tx.type === "CREDIT",
       };
     });
 
   // Merge and sort all history items
   const combinedHistory = [...historyOrders, ...transactionItems]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 5);
 
   const formatDateShort = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("id-ID", {
@@ -121,27 +148,89 @@ export default function UserDashboard() {
     });
   };
 
+  // Calculate total MUTU waste from COMPLETED orders
+  const completedOrders = allOrders.filter((o) => o.status === OrderStatus.COMPLETED);
+  let totalMutuKg = 0;
+  let latestMutuKg = 0;
+  let totalPoints = 0;
+  let latestPoints = 0;
+
+  completedOrders.forEach((order) => {
+    let orderMutu = 0;
+    if (order.wasteItems && order.wasteItems.length > 0) {
+      order.wasteItems.forEach((item) => {
+        if (item.wasteType?.category === "MUTU") {
+          orderMutu += Number(item.weight) || 0;
+        }
+      });
+    }
+    totalMutuKg += orderMutu;
+
+    if (order.pointTransactions && order.pointTransactions.length > 0) {
+      order.pointTransactions.forEach((pt) => {
+        totalPoints += pt.points;
+      });
+    }
+  });
+
+  const sortedCompleted = [...completedOrders].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  if (sortedCompleted.length > 0) {
+    const latest = sortedCompleted[0];
+    if (latest.wasteItems) {
+      latest.wasteItems.forEach((item) => {
+        if (item.wasteType?.category === "MUTU") {
+          latestMutuKg += Number(item.weight) || 0;
+        }
+      });
+    }
+    if (latest.pointTransactions && latest.pointTransactions.length > 0) {
+      latest.pointTransactions.forEach((pt) => {
+        latestPoints += pt.points;
+      });
+    }
+  }
+
+  // Fallback: 1 kg MUTU = 1 Point if pointTransactions is not included in the list endpoint
+  if (totalPoints === 0 && totalMutuKg > 0) {
+    totalPoints = Math.floor(totalMutuKg);
+  }
+  if (latestPoints === 0 && latestMutuKg > 0) {
+    latestPoints = Math.floor(latestMutuKg);
+  }
+
+  const formattedTotalMutu = `${totalMutuKg.toFixed(1)} kg`;
+  const formattedTrend = latestMutuKg > 0 ? `+${latestMutuKg.toFixed(1)}kg` : "";
+
   return (
     <DashboardLayout role="user">
       <div className="space-y-6">
         {/* Warning Banner if No Address */}
-        {!isAddressesLoading && (!addressesData?.data || addressesData.data.length === 0) && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-red-700">Alamat Belum Diisi</h4>
-              <p className="text-xs text-red-600 mt-1">
-                Anda belum mengatur alamat penjemputan. Silakan isi alamat terlebih dahulu agar kurir dapat menjemput sampah Anda.
-              </p>
-              <button
-                onClick={() => (window.location.href = "/dashboard/user/profile?tab=address")}
-                className="mt-3 text-xs font-bold bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition-colors"
-              >
-                Isi Alamat Sekarang
-              </button>
+        {!isAddressesLoading &&
+          (!addressesData?.data || addressesData.data.length === 0) && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-red-700">
+                  Alamat Belum Diisi
+                </h4>
+                <p className="text-xs text-red-600 mt-1">
+                  Anda belum mengatur alamat penjemputan. Silakan isi alamat
+                  terlebih dahulu agar kurir dapat menjemput sampah Anda.
+                </p>
+                <button
+                  onClick={() =>
+                    (window.location.href =
+                      "/dashboard/user/profile?tab=address")
+                  }
+                  className="mt-3 text-xs font-bold bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition-colors"
+                >
+                  Isi Alamat Sekarang
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Header Section: Spans Full Width */}
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -160,51 +249,62 @@ export default function UserDashboard() {
 
         {/* Mobile Only: Active Order Card (above stats) */}
         {activeOrder && (
-        <div className="md:hidden">
-          <div className="bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm">
-            <div className="p-3 border-b border-primary/10 flex items-center justify-between bg-primary/10">
-              <div className="flex items-center gap-2 text-primary">
-                <Navigation size={14} className="animate-pulse" />
-                <h3 className="text-[10px] font-black uppercase tracking-widest">
-                  Pesanan Berjalan
-                </h3>
+          <div className="md:hidden">
+            <div className="bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm">
+              <div className="p-3 border-b border-primary/10 flex items-center justify-between bg-primary/10">
+                <div className="flex items-center gap-2 text-primary">
+                  <Navigation size={14} className="animate-pulse" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest">
+                    Pesanan Berjalan
+                  </h3>
+                </div>
+                <span className="text-[9px] font-bold bg-white text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                  {STATUS_LABELS[activeOrder.status] || activeOrder.status}
+                </span>
               </div>
-              <span className="text-[9px] font-bold bg-white text-primary px-2 py-0.5 rounded-full border border-primary/20">
-                {STATUS_LABELS[activeOrder.status] || activeOrder.status}
-              </span>
-            </div>
-            <div className="p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-lg border-2 border-white shrink-0">
-                  {activeOrder.courier?.user?.name?.charAt(0) || "K"}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-lg border-2 border-white shrink-0">
+                    {activeOrder.courier?.user?.name?.charAt(0) || "K"}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-dark leading-none">
+                      {activeOrder.status === OrderStatus.MATCHED &&
+                      activeOrder.scheduleType === "SCHEDULED"
+                        ? "Menunggu jam jemput"
+                        : activeOrder.courier?.user?.name || "Mencari kurir..."}
+                    </p>
+                    <p className="text-[10px] font-bold text-primary mt-1 uppercase tracking-wider">
+                      {activeOrder.id.slice(0, 8).toUpperCase()}
+                      {activeOrder.courier?.vehicleType
+                        ? ` • ${activeOrder.courier.vehicleType}`
+                        : ""}
+                      {activeOrder.scheduleType === "SCHEDULED" &&
+                        activeOrder.status === OrderStatus.MATCHED &&
+                        activeOrder.scheduledAt &&
+                        ` • Jam ${new Date(activeOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const isSearchStep =
+                        activeOrder.status === OrderStatus.CREATED ||
+                        activeOrder.status === OrderStatus.MATCHED;
+                      window.location.href = isSearchStep
+                        ? `/dashboard/user/order/search?orderId=${activeOrder.id}`
+                        : `/dashboard/user/order/tracking/${activeOrder.id}`;
+                    }}
+                    className="px-4 py-2 rounded-full bg-primary text-white text-[10px] font-black hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
+                  >
+                    {activeOrder.status === OrderStatus.CREATED ||
+                    activeOrder.status === OrderStatus.MATCHED
+                      ? "Cek Radar"
+                      : "Lacak"}
+                  </button>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-dark leading-none">
-                    {activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduleType === "SCHEDULED" 
-                      ? "Menunggu jam jemput" 
-                      : (activeOrder.courier?.user?.name || "Mencari kurir...")}
-                  </p>
-                  <p className="text-[10px] font-bold text-primary mt-1 uppercase tracking-wider">
-                    {activeOrder.id.slice(0, 8).toUpperCase()} 
-                    {activeOrder.courier?.vehicleType ? ` • ${activeOrder.courier.vehicleType}` : ""}
-                    {activeOrder.scheduleType === "SCHEDULED" && activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduledAt && ` • Jam ${new Date(activeOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    const isSearchStep = activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED;
-                    window.location.href = isSearchStep 
-                      ? `/dashboard/user/order/search?orderId=${activeOrder.id}`
-                      : `/dashboard/user/order/tracking/${activeOrder.id}`;
-                  }}
-                  className="px-4 py-2 rounded-full bg-primary text-white text-[10px] font-black hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
-                >
-                  {activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED ? "Cek Radar" : "Lacak"}
-                </button>
               </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* Top Section: Wallet & Stats Grid */}
@@ -214,23 +314,25 @@ export default function UserDashboard() {
               balance={walletBalance}
               isLoading={isWalletLoading}
               onOrder={() => (window.location.href = "/dashboard/user/order")}
-              onWithdraw={() => (window.location.href = "/dashboard/user/wallet")}
+              onWithdraw={() =>
+                (window.location.href = "/dashboard/user/wallet")
+              }
             />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-6">
             <StatCard
-              label="Total Sampah"
-              value="42.5 kg"
+              label="Total Sampah Mutu"
+              value={formattedTotalMutu}
               icon={Trash2}
-              trend="+5.2kg"
+              trend={formattedTrend}
               className="w-full"
               iconClassName="bg-secondary/20 text-dark"
             />
             <StatCard
               label="Point Loyalty"
-              value="1,250 pts"
+              value={`${totalPoints.toLocaleString("id-ID")} pts`}
               icon={TrendingUp}
-              trend="+35%"
+              trend={latestPoints > 0 ? `+${latestPoints} pts` : ""}
               className="w-full"
               iconClassName="bg-primary/10 text-primary"
             />
@@ -241,92 +343,115 @@ export default function UserDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {/* Column 1: Pesanan Berjalan with Map Preview (Desktop only — mobile version is above) */}
           {activeOrder ? (
-          <div className="hidden md:flex bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm flex-col">
-            <div className="p-4 border-b border-primary/10 flex items-center justify-between bg-primary/10 shrink-0">
-              <div className="flex items-center gap-2 text-primary">
-                <Navigation size={16} className="animate-pulse" />
-                <h3 className="text-xs font-black uppercase tracking-widest">
-                  Pesanan Berjalan
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded-full border border-primary/20">
-                {STATUS_LABELS[activeOrder.status] || activeOrder.status}
-              </span>
-            </div>
-            <div className="p-5 flex-1 flex flex-col space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xl border-2 border-white shrink-0">
-                  {activeOrder.courier?.user?.name?.charAt(0) || "K"}
+            <div className="hidden md:flex bg-primary/5 rounded-2xl border border-primary/20 overflow-hidden shadow-sm flex-col">
+              <div className="p-4 border-b border-primary/10 flex items-center justify-between bg-primary/10 shrink-0">
+                <div className="flex items-center gap-2 text-primary">
+                  <Navigation size={16} className="animate-pulse" />
+                  <h3 className="text-xs font-black uppercase tracking-widest">
+                    Pesanan Berjalan
+                  </h3>
                 </div>
-                <div>
-                  <p className="text-md font-bold text-dark leading-none">
-                    {activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduleType === "SCHEDULED" 
-                      ? "Menunggu jam jemput" 
-                      : (activeOrder.courier?.user?.name || "Mencari kurir...")}
-                  </p>
-                  <p className="text-xs font-bold text-primary mt-2 uppercase tracking-wider">
-                    {activeOrder.id.slice(0, 8).toUpperCase()} 
-                    {activeOrder.courier?.vehicleType ? ` • ${activeOrder.courier.vehicleType}` : ""}
-                    {activeOrder.scheduleType === "SCHEDULED" && activeOrder.status === OrderStatus.MATCHED && activeOrder.scheduledAt && ` • Jam ${new Date(activeOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`}
-                  </p>
-                </div>
+                <span className="text-[10px] font-bold bg-white text-primary px-2 py-1 rounded-full border border-primary/20">
+                  {STATUS_LABELS[activeOrder.status] || activeOrder.status}
+                </span>
               </div>
+              <div className="p-5 flex-1 flex flex-col space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xl border-2 border-white shrink-0">
+                    {activeOrder.courier?.user?.name?.charAt(0) || "K"}
+                  </div>
+                  <div>
+                    <p className="text-md font-bold text-dark leading-none">
+                      {activeOrder.status === OrderStatus.MATCHED &&
+                      activeOrder.scheduleType === "SCHEDULED"
+                        ? "Menunggu jam jemput"
+                        : activeOrder.courier?.user?.name || "Mencari kurir..."}
+                    </p>
+                    <p className="text-xs font-bold text-primary mt-2 uppercase tracking-wider">
+                      {activeOrder.id.slice(0, 8).toUpperCase()}
+                      {activeOrder.courier?.vehicleType
+                        ? ` • ${activeOrder.courier.vehicleType}`
+                        : ""}
+                      {activeOrder.scheduleType === "SCHEDULED" &&
+                        activeOrder.status === OrderStatus.MATCHED &&
+                        activeOrder.scheduledAt &&
+                        ` • Jam ${new Date(activeOrder.scheduledAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`}
+                    </p>
+                  </div>
+                </div>
 
-              {/* Map Preview */}
-              <div className="h-48 w-full rounded-xl overflow-hidden border border-primary/10 shadow-inner">
-                <MapboxView
-                  className="w-full h-full"
-                  center={[
-                    activeOrder.address?.longitude ? Number(activeOrder.address.longitude) : 112.7521,
-                    activeOrder.address?.latitude ? Number(activeOrder.address.latitude) : -7.2575
-                  ]}
-                  zoom={13}
-                  interactive={false}
-                  markers={[
-                    {
-                      id: "user",
-                      lat: activeOrder.address?.latitude ? Number(activeOrder.address.latitude) : -7.2575,
-                      lng: activeOrder.address?.longitude ? Number(activeOrder.address.longitude) : 112.7521,
-                      type: "user"
+                {/* Map Preview */}
+                <div className="h-48 w-full rounded-xl overflow-hidden border border-primary/10 shadow-inner">
+                  <MapboxView
+                    className="w-full h-full"
+                    center={[
+                      activeOrder.address?.longitude
+                        ? Number(activeOrder.address.longitude)
+                        : 112.7521,
+                      activeOrder.address?.latitude
+                        ? Number(activeOrder.address.latitude)
+                        : -7.2575,
+                    ]}
+                    zoom={13}
+                    interactive={false}
+                    markers={[
+                      {
+                        id: "user",
+                        lat: activeOrder.address?.latitude
+                          ? Number(activeOrder.address.latitude)
+                          : -7.2575,
+                        lng: activeOrder.address?.longitude
+                          ? Number(activeOrder.address.longitude)
+                          : 112.7521,
+                        type: "user",
+                      },
+                    ]}
+                  />
+                </div>
+
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() =>
+                      (window.location.href = `/dashboard/user/history/${activeOrder.id}`)
                     }
-                  ]}
-                />
-              </div>
-
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => (window.location.href = `/dashboard/user/history/${activeOrder.id}`)}
-                  className="flex-[0.4] px-3 py-2.5 rounded-full bg-white border border-primary/20 text-primary text-xs font-bold hover:bg-primary/5 transition-all"
-                >
-                  Detail
-                </button>
-                <button
-                  onClick={() => {
-                    const isSearchStep = activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED;
-                    window.location.href = isSearchStep 
-                      ? `/dashboard/user/order/search?orderId=${activeOrder.id}`
-                      : `/dashboard/user/order/tracking/${activeOrder.id}`;
-                  }}
-                  className="flex-1 px-3 py-2.5 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all active:scale-95 shadow-sm"
-                >
-                  {activeOrder.status === OrderStatus.CREATED || activeOrder.status === OrderStatus.MATCHED ? "Cek Radar" : "Lacak Kurir"}
-                </button>
+                    className="flex-[0.4] px-3 py-2.5 rounded-full bg-white border border-primary/20 text-primary text-xs font-bold hover:bg-primary/5 transition-all"
+                  >
+                    Detail
+                  </button>
+                  <button
+                    onClick={() => {
+                      const isSearchStep =
+                        activeOrder.status === OrderStatus.CREATED ||
+                        activeOrder.status === OrderStatus.MATCHED;
+                      window.location.href = isSearchStep
+                        ? `/dashboard/user/order/search?orderId=${activeOrder.id}`
+                        : `/dashboard/user/order/tracking/${activeOrder.id}`;
+                    }}
+                    className="flex-1 px-3 py-2.5 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all active:scale-95 shadow-sm"
+                  >
+                    {activeOrder.status === OrderStatus.CREATED ||
+                    activeOrder.status === OrderStatus.MATCHED
+                      ? "Cek Radar"
+                      : "Lacak Kurir"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
           ) : (
-          <div className="hidden md:flex bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex-col items-center justify-center p-8">
-            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-3">
-              <Package size={24} />
+            <div className="hidden md:flex bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex-col items-center justify-center p-8">
+              <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-3">
+                <Package size={24} />
+              </div>
+              <p className="text-sm font-bold text-gray-400">
+                Tidak ada pesanan aktif
+              </p>
+              <button
+                onClick={() => (window.location.href = "/dashboard/user/order")}
+                className="mt-3 px-5 py-2 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all active:scale-95"
+              >
+                Buat Pesanan Baru
+              </button>
             </div>
-            <p className="text-sm font-bold text-gray-400">Tidak ada pesanan aktif</p>
-            <button
-              onClick={() => (window.location.href = "/dashboard/user/order")}
-              className="mt-3 px-5 py-2 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all active:scale-95"
-            >
-              Buat Pesanan Baru
-            </button>
-          </div>
           )}
 
           {/* Column 2: Riwayat */}
@@ -339,18 +464,12 @@ export default function UserDashboard() {
                     <History size={16} className="text-dark" />
                   </div>
                   <h3 className="text-xs font-black text-dark uppercase tracking-widest">
-                    Riwayat
+                    Riwayat Terakhir
                   </h3>
                 </div>
-                <button
-                  onClick={() => (window.location.href = "/dashboard/user/wallet")}
-                  className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
-                >
-                  Semua <ChevronRight size={12} />
-                </button>
               </div>
 
-              <div className="divide-y divide-gray-50 flex-1 overflow-auto">
+              <div className="divide-y divide-gray-50 flex-1 overflow-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                 {isTxLoading || isWalletLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-6 h-6 text-primary animate-spin" />
@@ -384,19 +503,26 @@ export default function UserDashboard() {
                               "w-8 h-8 rounded-lg flex items-center justify-center text-[8px] font-black",
                               item.isIncome
                                 ? "bg-primary/10 text-primary"
-                                : isCancelled 
+                                : isCancelled
                                   ? "bg-red-50 text-red-400"
                                   : "bg-red-50 text-red-600",
                             )}
                           >
-                            {isOrder ? (isCancelled ? "X" : "ORD") : (item.isIncome ? "IN" : "OUT")}
+                            {isOrder
+                              ? isCancelled
+                                ? "X"
+                                : "ORD"
+                              : item.isIncome
+                                ? "IN"
+                                : "OUT"}
                           </div>
                           <div>
                             <p className="text-[11px] font-bold text-dark">
                               {item.title}
                             </p>
-                            <p className="text-[9px] text-gray-400 font-medium">
+                            <p className="text-[9px] text-gray-400 font-medium mt-0.5">
                               {formatDateShort(item.createdAt)}
+                              {(item as any).subtitle ? ` • ${(item as any).subtitle}` : ""}
                             </p>
                           </div>
                         </div>
@@ -404,17 +530,16 @@ export default function UserDashboard() {
                           <p
                             className={cn(
                               "text-[11px] font-bold",
-                              item.isIncome ? "text-green-600" : (isCancelled ? "text-gray-400" : "text-dark"),
+                              item.isIncome
+                                ? "text-green-600"
+                                : isCancelled
+                                  ? "text-gray-400"
+                                  : "text-red-600",
                             )}
                           >
-                            {isCancelled ? "" : (item.isIncome ? "+" : "-")} Rp{" "}
+                            {isCancelled ? "" : item.isIncome ? "+" : "-"} Rp{" "}
                             {item.amount.toLocaleString("id-ID")}
                           </p>
-                          {isOrder && !isCancelled && (
-                            <p className="text-[8px] font-bold text-primary mt-0.5">
-                              #{item.id.slice(0, 6).toUpperCase()}
-                            </p>
-                          )}
                         </div>
                       </div>
                     );
@@ -439,7 +564,10 @@ export default function UserDashboard() {
                   poin** minggu ini!
                 </p>
               </div>
-              <button className="relative z-10 mt-4 w-full text-xs font-bold bg-white text-primary py-2.5 rounded-md cursor-pointer transition-all active:scale-95">
+              <button
+                onClick={() => setShowTipsModal(true)}
+                className="relative z-10 mt-4 w-full text-xs font-bold bg-white text-primary py-2.5 rounded-md cursor-pointer transition-all active:scale-95 hover:opacity-90"
+              >
                 Pelajari Detail
               </button>
               <div className="absolute -right-6 -bottom-6 opacity-10 transform rotate-12 scale-150">
@@ -462,7 +590,10 @@ export default function UserDashboard() {
                 </p>
               </div>
               <div className="space-y-2">
-                <button className="w-full text-left p-2.5 rounded-md bg-gray-50 text-[11px] font-bold text-dark hover:bg-primary/5 hover:text-primary transition-all flex items-center justify-between group border border-transparent hover:border-primary/10">
+                <button
+                  onClick={() => setShowGuideModal(true)}
+                  className="w-full text-left p-2.5 rounded-md bg-gray-50 text-[11px] font-bold text-dark hover:bg-primary/5 hover:text-primary transition-all flex items-center justify-between group border border-transparent hover:border-primary/10 cursor-pointer"
+                >
                   <div className="flex items-center gap-2">
                     <BookOpen size={14} className="text-primary" />
                     Pusat Panduan
@@ -472,7 +603,10 @@ export default function UserDashboard() {
                     className="opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0"
                   />
                 </button>
-                <button className="w-full text-left p-2.5 rounded-md bg-gray-50 text-[11px] font-bold text-dark hover:bg-primary/5 hover:text-primary transition-all flex items-center justify-between group border border-transparent hover:border-primary/10">
+                <button
+                  onClick={() => setShowCSModal(true)}
+                  className="w-full text-left p-2.5 rounded-md bg-gray-50 text-[11px] font-bold text-dark hover:bg-primary/5 hover:text-primary transition-all flex items-center justify-between group border border-transparent hover:border-primary/10 cursor-pointer"
+                >
                   <div className="flex items-center gap-2">
                     <Headphones size={14} className="text-primary" />
                     Customer Service
@@ -487,6 +621,241 @@ export default function UserDashboard() {
           </div>
         </div>
       </div>
+
+
+      {/* Premium Tips Modal */}
+      {showTipsModal && (
+        <div className="fixed inset-0 z-[100] bg-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden border border-gray-100">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-primary/5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                  <TrendingUp size={18} />
+                </div>
+                <h3 className="text-sm font-extrabold text-dark uppercase tracking-widest">
+                  Tips Hari Ini
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowTipsModal(false)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-dark transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-xl font-black text-dark tracking-tight">
+                  Pemilahan Sampah Kreatif (Bonus Poin 15%)
+                </h4>
+                <p className="text-sm text-gray-500 leading-relaxed font-semibold">
+                  Pisahkan sampah organik & anorganik untuk dapatkan **bonus 15% poin** minggu ini!
+                </p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Langkah Pemilahan Sampah Mandiri:
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Wadah Terpisah</strong>: Sediakan dua wadah pembuangan yang berlabel jelas untuk kategori sampah <strong>Organik</strong> dan <strong>Anorganik</strong>.
+                    </p>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Kategori Organik</strong>: Masukkan sisa makanan, kulit buah, dedaunan, dan bahan dapur organik mudah membusuk lainnya ke wadah hijau.
+                    </p>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Kategori Anorganik Bersih</strong>: Bersihkan terlebih dahulu botol plastik, gelas kaca, kaleng, kardus, atau kertas kering sebelum memasukannya ke wadah biru.
+                    </p>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">4</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      <strong>Validasi Instan & Klaim Poin</strong>: Kurir kami akan secara otomatis memvalidasi pemilahan sampah Anda saat penimbangan dan menambahkan bonus poin 15% langsung ke e-wallet Anda!
+                    </p>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowTipsModal(false)}
+                className="px-6 py-2.5 rounded-full bg-dark text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+              >
+                Mulai Memilah
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Premium Guide Modal */}
+      {showGuideModal && (
+        <div className="fixed inset-0 z-[100] bg-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden border border-gray-100">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-primary/5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                  <BookOpen size={18} />
+                </div>
+                <h3 className="text-sm font-extrabold text-dark uppercase tracking-widest">
+                  Pusat Panduan Angkutin
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowGuideModal(false)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-dark transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-dark uppercase tracking-wider">1. Cara Memesan Layanan Penjemputan</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Masuk ke halaman utama dasbor Anda, klik tombol <strong>"Angkut Sekarang"</strong>, lengkapi koordinat lokasi penjemputan, isi jenis sampah beserta foto estimasi, dan buat pesanan. Kurir terdekat akan segera mencocokkan pesanan Anda.
+                  </p>
+                </div>
+
+                <div className="space-y-1 border-t border-gray-100 pt-3">
+                  <h4 className="text-sm font-black text-dark uppercase tracking-wider">2. Perhitungan Saldo & Sampah Mutu</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Angkutin mengapresiasi sampah bernilai tinggi (seperti botol plastik bersih, logam, kertas bekas) dengan poin yang dapat ditarik menjadi uang tunai. Sampah kotor atau residu yang tidak bisa didaur ulang akan dikenakan potongan biaya pengelolaan demi menjaga lingkungan.
+                  </p>
+                </div>
+
+                <div className="space-y-1 border-t border-gray-100 pt-3">
+                  <h4 className="text-sm font-black text-dark uppercase tracking-wider">3. Jenis Sampah Yang Diterima</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Kami menerima berbagai kategori sampah kering / anorganik terpilah seperti plastik (PET/HDPE), kertas/karton, logam (besi/aluminium), sampah elektronik ringan, serta sampah dapur organik basah untuk diolah menjadi kompos.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowGuideModal(false)}
+                className="px-6 py-2.5 rounded-full bg-dark text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+              >
+                Tutup Panduan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Premium CS Modal */}
+      {showCSModal && (
+        <div className="fixed inset-0 z-[100] bg-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden border border-gray-100">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-primary/5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                  <Headphones size={18} />
+                </div>
+                <h3 className="text-sm font-extrabold text-dark uppercase tracking-widest">
+                  Customer Service Angkutin
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowCSModal(false)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-dark transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                Hubungi Kami Melalui Saluran Resmi:
+              </p>
+              
+              <div className="space-y-3">
+                <a
+                  href="https://wa.me/6281234567890"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-dark">WhatsApp Chat</h4>
+                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">Respon cepat • 08:00 - 20:00 WIB</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+                </a>
+
+                <a
+                  href="tel:021500888"
+                  className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <Phone size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-dark">Call Center Resmi</h4>
+                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">Dukungan 24 Jam • Masalah Mendesak</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+                </a>
+
+                <a
+                  href="mailto:support@angkutin.com"
+                  className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                      <Mail size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-dark">Email Support</h4>
+                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">Balasan maks. 24 Jam • Pertanyaan Umum</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+                </a>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowCSModal(false)}
+                className="px-6 py-2.5 rounded-full bg-dark text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

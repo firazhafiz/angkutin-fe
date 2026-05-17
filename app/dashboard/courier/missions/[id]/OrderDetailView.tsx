@@ -84,19 +84,35 @@ function buildTimeline(order: Order) {
       status: STATUS_TIMELINE_MAP[entry.status] || entry.status,
       time: formatTime(entry.createdAt),
       completed: true,
+      photoUrl: entry.photoUrl,
+      note: entry.note,
     }));
   }
   const currentIdx = STATUS_SEQUENCE.indexOf(order.status);
   if (order.status === OrderStatus.CANCELLED) {
     return [
-      { status: "Order Dibuat", time: formatTime(order.createdAt), completed: true },
-      { status: "Dibatalkan", time: formatTime(order.createdAt), completed: true },
+      {
+        status: "Order Dibuat",
+        time: formatTime(order.createdAt),
+        completed: true,
+        photoUrl: null,
+        note: null,
+      },
+      {
+        status: "Dibatalkan",
+        time: formatTime(order.createdAt),
+        completed: true,
+        photoUrl: null,
+        note: null,
+      },
     ];
   }
   return STATUS_SEQUENCE.map((s, idx) => ({
     status: STATUS_TIMELINE_MAP[s] || s,
     time: idx === 0 ? formatTime(order.createdAt) : "-",
     completed: idx <= currentIdx,
+    photoUrl: null,
+    note: null,
   }));
 }
 
@@ -114,7 +130,9 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
       <DashboardLayout role="courier">
         <div className="flex flex-col items-center justify-center py-32">
           <Loader2 size={32} className="text-primary animate-spin mb-3" />
-          <p className="text-sm text-gray-400 font-medium">Memuat detail order...</p>
+          <p className="text-sm text-gray-400 font-medium">
+            Memuat detail order...
+          </p>
         </div>
       </DashboardLayout>
     );
@@ -125,8 +143,13 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
       <DashboardLayout role="courier">
         <div className="flex flex-col items-center justify-center py-32">
           <XCircle size={32} className="text-red-400 mb-3" />
-          <p className="text-sm text-gray-400 font-medium">Order tidak ditemukan</p>
-          <Link href="/dashboard/courier/missions" className="mt-4 text-xs font-bold text-primary hover:underline">
+          <p className="text-sm text-gray-400 font-medium">
+            Order tidak ditemukan
+          </p>
+          <Link
+            href="/dashboard/courier/missions"
+            className="mt-4 text-xs font-bold text-primary hover:underline"
+          >
             Kembali ke Daftar Order
           </Link>
         </div>
@@ -163,8 +186,12 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
   ];
 
   const statusLabel = STATUS_TIMELINE_MAP[order.status] || order.status;
-  const addressText = order.address?.addressDetail ||
-    [order.address?.village, order.address?.district].filter(Boolean).join(", ") || "-";
+  const addressText =
+    order.address?.addressDetail ||
+    [order.address?.village, order.address?.district]
+      .filter(Boolean)
+      .join(", ") ||
+    "-";
 
   return (
     <DashboardLayout role="courier">
@@ -191,12 +218,20 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
             {/* Status Header */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100">
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Status Saat Ini</p>
-                <h3 className="text-lg font-black text-dark uppercase">{statusLabel}</h3>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  Status Saat Ini
+                </p>
+                <h3 className="text-lg font-black text-dark uppercase">
+                  {statusLabel}
+                </h3>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Waktu Dibuat</p>
-                <p className="text-sm font-bold text-dark">{formatDate(order.createdAt)} • {formatTime(order.createdAt)}</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  Waktu Dibuat
+                </p>
+                <p className="text-sm font-bold text-dark">
+                  {formatDate(order.createdAt)} • {formatTime(order.createdAt)}
+                </p>
               </div>
             </div>
 
@@ -204,66 +239,131 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
             <div className="relative pl-4">
               <div className="absolute left-[33px] top-4 bottom-4 w-0.5 bg-slate-800/50 z-0"></div>
               {timeline.map((step, index) => (
-                <div key={index} className="relative z-10 flex items-start gap-6 pb-10 last:pb-0 group">
-                  <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shrink-0 transition-all duration-500",
-                    step.completed ? "bg-primary text-white scale-110" : "bg-gray-50 text-gray-300",
-                  )}>
+                <div
+                  key={index}
+                  className="relative z-10 flex items-start gap-6 pb-10 last:pb-0 group"
+                >
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shrink-0 transition-all duration-500",
+                      step.completed
+                        ? "bg-primary text-white scale-110"
+                        : "bg-gray-50 text-gray-300",
+                    )}
+                  >
                     <CheckCircle2 size={18} />
                   </div>
                   <div className="pt-1">
-                    <p className={cn("text-sm font-bold uppercase tracking-wider mb-1", step.completed ? "text-dark" : "text-gray-400")}>
+                    <p
+                      className={cn(
+                        "text-sm font-bold uppercase tracking-wider mb-1",
+                        step.completed ? "text-dark" : "text-gray-400",
+                      )}
+                    >
                       {step.status}
                     </p>
                     <p className="text-xs font-bold text-gray-400 flex items-center gap-1">
                       <Calendar size={10} /> {step.time}
                     </p>
+                    {step.note && !step.note.includes('{"') && (
+                      <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                        {step.note}
+                      </p>
+                    )}
+                    {step.photoUrl && (
+                      <div className="mt-3 relative w-32 h-32 rounded-xl overflow-hidden border border-gray-200">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={step.photoUrl}
+                          alt="Bukti"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+          </div>
 
+          {/* Right Column */}
+          <div className="lg:col-span-5 space-y-10">
             {/* Waste Items */}
-            <div className="pt-6">
+            <div>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-black text-dark text-sm uppercase tracking-widest flex items-center gap-2">
-                  <Package size={18} className="text-primary" /> Rincian Pengangkutan
+                  <Package size={18} className="text-primary" /> Rincian
+                  Pengangkutan
                 </h3>
                 <div className="px-4 py-2 bg-primary-light rounded-full text-[10px] font-black text-gray-500 border border-gray-100">
-                  {allItems.length > 0 ? `${allItems.length} ITEM` : "BELUM ADA"}
+                  {allItems.length > 0
+                    ? `${allItems.length} ITEM`
+                    : "BELUM ADA"}
                 </div>
               </div>
-              <div className="flex flex-col md:flex-row gap-6 items-start">
+              <div className="flex flex-col gap-6 items-start">
                 <div className="space-y-2 w-full">
-                  {allItems.length > 0 ? allItems.map((item, index) => (
-                    <div key={item.id || index} className={cn(
-                      "flex items-center justify-between p-4 border rounded-xl transition-all group",
-                      item.isResidu ? "border-red-200 bg-red-50/30" : "border-primary"
-                    )}>
-                      <div className="flex items-center gap-5">
-                        <span className={cn("text-2xl font-black", item.isResidu ? "text-red-300" : "text-primary/40")}>{index + 1}</span>
-                        <div>
-                          <p className="text-sm font-bold text-dark">{item.label}</p>
-                          <p className="text-xs font-bold text-gray-400">{item.weight} kg</p>
+                  {allItems.length > 0 ? (
+                    allItems.map((item, index) => (
+                      <div
+                        key={item.id || index}
+                        className={cn(
+                          "flex items-center justify-between p-4 border rounded-xl transition-all group",
+                          item.isResidu
+                            ? "border-red-200 bg-red-50/30"
+                            : "border-primary",
+                        )}
+                      >
+                        <div className="flex items-center gap-5">
+                          <span
+                            className={cn(
+                              "text-2xl font-black",
+                              item.isResidu
+                                ? "text-red-300"
+                                : "text-primary/40",
+                            )}
+                          >
+                            {index + 1}
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-dark">
+                              {item.label}
+                            </p>
+                            <p className="text-xs font-bold text-gray-400">
+                              {item.weight} kg
+                            </p>
+                          </div>
                         </div>
+                        <p
+                          className={cn(
+                            "font-black tracking-tight",
+                            item.isResidu ? "text-red-500" : "text-dark",
+                          )}
+                        >
+                          {item.isResidu ? "- " : ""}
+                          {formatCurrency(item.subtotal)}
+                        </p>
                       </div>
-                      <p className={cn("font-black tracking-tight", item.isResidu ? "text-red-500" : "text-dark")}>
-                        {item.isResidu ? "- " : ""}{formatCurrency(item.subtotal)}
-                      </p>
-                    </div>
-                  )) : (
+                    ))
+                  ) : (
                     <div className="p-6 border border-dashed border-gray-200 rounded-xl text-center">
-                      <p className="text-xs text-gray-400 font-medium">Rincian muncul setelah penimbangan.</p>
+                      <p className="text-xs text-gray-400 font-medium">
+                        Rincian muncul setelah penimbangan.
+                      </p>
                     </div>
                   )}
                 </div>
 
                 {(order.totalCredit > 0 || order.netTotal !== null) && (
-                  <div className="w-full mt-6 p-6 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
+                  <div className="w-full mt-2 p-6 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Net Total</p>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
+                        Net Total
+                      </p>
                       <p className="text-2xl font-black text-dark tracking-tighter">
-                        {formatCurrency(order.netTotal ?? order.totalCredit ?? 0)}
+                        {formatCurrency(
+                          order.netTotal ?? order.totalCredit ?? 0,
+                        )}
                       </p>
                     </div>
                     <TrendingUp size={32} className="text-primary/20" />
@@ -271,10 +371,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Right Column */}
-          <div className="lg:col-span-5 space-y-10">
             {/* Map Preview */}
             <div className="relative group">
               <div className="relative h-72 rounded-2xl overflow-hidden border border-primary/10 bg-[#cad9d7] shadow-inner pointer-events-none">
@@ -293,13 +390,17 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     },
                   ]}
                 />
-                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50 pointer-events-auto shadow-sm">
+                <div className="absolute bottom-4 left-4 right-4 bg-white/60 backdrop-blur-md p-4 rounded-full flex items-center gap-4 border border-white/50 pointer-events-auto">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
                     <MapPin size={20} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">Titik Penjemputan</p>
-                    <p className="text-[11px] font-bold text-dark leading-tight line-clamp-1">{addressText}</p>
+                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">
+                      Titik Penjemputan
+                    </p>
+                    <p className="text-[11px] font-bold text-dark leading-tight line-clamp-1">
+                      {addressText}
+                    </p>
                   </div>
                   <button className="w-10 h-10 flex items-center justify-center cursor-pointer">
                     <ChevronRight size={20} className="text-dark" />
@@ -312,8 +413,12 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
             <div className="space-y-6">
               <div className="flex items-center gap-5">
                 <div className="relative">
-                  <div className="w-19 h-19 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl ring-2 ring-primary/60">
-                    {order.user?.name?.charAt(0) || "U"}
+                  <div className="w-19 h-19 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl ring-2 ring-primary/60 overflow-hidden">
+                    <img
+                      src={order.user?.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${order.user?.name || "User"}`}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
                 <div className="flex-1">
@@ -324,7 +429,7 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                     Customer Angkutin
                   </p>
                   <div className="flex gap-2">
-                    <button className="flex-1 py-2 bg-primary/10 text-primary rounded-md text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
+                    <button className="flex-1 py-2 bg-primary/10 text-primary rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
                       Chat
                     </button>
                     <button className="px-3 py-2 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-all">
@@ -342,29 +447,46 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                   <div className="absolute top-0 right-0 p-4">
                     <Package size={40} className="text-white/5" />
                   </div>
-                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-8">Bukti Transaksi</p>
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-8">
+                    Bukti Transaksi
+                  </p>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-white/50 font-medium">Jadwal</span>
-                      <span className="font-bold capitalize">{order.scheduleType.toLowerCase()}</span>
+                      <span className="font-bold capitalize">
+                        {order.scheduleType.toLowerCase()}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-white/50 font-medium">Waktu Dibuat</span>
-                      <span className="font-bold">{formatDate(order.createdAt)}</span>
+                      <span className="text-white/50 font-medium">
+                        Waktu Dibuat
+                      </span>
+                      <span className="font-bold">
+                        {formatDate(order.createdAt)}
+                      </span>
                     </div>
                     {order.note && (
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-white/50 font-medium">Catatan</span>
-                        <span className="font-bold text-right max-w-[200px] truncate">{order.note}</span>
+                        <span className="text-white/50 font-medium">
+                          Catatan
+                        </span>
+                        <span className="font-bold text-right max-w-[200px] truncate">
+                          {order.note}
+                        </span>
                       </div>
                     )}
                     <div className="pt-6 border-t border-white/10 flex items-end justify-between">
                       <div>
                         <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">
-                          {order.netTotal !== null && order.netTotal !== undefined ? "NET TOTAL" : "KREDIT MUTU"}
+                          {order.netTotal !== null &&
+                          order.netTotal !== undefined
+                            ? "NET TOTAL"
+                            : "KREDIT MUTU"}
                         </p>
                         <p className="text-4xl font-black text-white tracking-tighter">
-                          {formatCurrency(order.netTotal ?? order.totalCredit ?? 0)}
+                          {formatCurrency(
+                            order.netTotal ?? order.totalCredit ?? 0,
+                          )}
                         </p>
                       </div>
                     </div>
@@ -372,17 +494,20 @@ export default function OrderDetailView({ id }: OrderDetailViewProps) {
                 </div>
                 <div className="h-4 bg-dark rounded-b-2xl relative overflow-hidden flex">
                   {Array.from({ length: 15 }).map((_, i) => (
-                    <div key={i} className="flex-1 h-8 bg-gray-50 -mt-2 rounded-full transform rotate-45 origin-top-left"></div>
+                    <div
+                      key={i}
+                      className="flex-1 h-8 bg-gray-50 -mt-2 rounded-full transform rotate-45 origin-top-left"
+                    ></div>
                   ))}
                 </div>
               </div>
 
               {/* Action Strip */}
               <div className="flex gap-4">
-                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-md text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm">
+                <button className="flex-1 py-4 bg-white border border-primary/60 rounded-full text-xs font-black uppercase tracking-widest  text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
                   <Download size={16} className="text-primary" /> Struk PDF
                 </button>
-                <button className="flex-1 py-4 bg-white border border-gray-100 rounded-md text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm">
+                <button className="flex-1 py-4 bg-white border border-primary/60 rounded-full text-xs font-black uppercase tracking-widest text-dark hover:bg-gray-50 transition-all flex items-center justify-center gap-2 ">
                   <HelpCircle size={16} className="text-primary" /> Bantuan
                 </button>
               </div>

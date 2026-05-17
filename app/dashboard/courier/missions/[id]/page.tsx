@@ -131,6 +131,7 @@ function NavigationView({
   onCancel,
   loading,
   hideButton = false,
+  onCourierArrived,
 }: {
   status: OrderStatus;
   order: Order;
@@ -138,6 +139,7 @@ function NavigationView({
   onCancel?: () => void;
   loading: boolean;
   hideButton?: boolean;
+  onCourierArrived?: () => void;
 }) {
   const isDel = status === OrderStatus.DELIVERING;
   const userLat = parseDecimal(order?.address?.latitude) || -7.2575;
@@ -162,6 +164,7 @@ function NavigationView({
           animateCourier={true}
           animationSpeed={800}
           onRouteUpdate={({ duration }) => setRealEta(Math.ceil(duration / 60))}
+          onCourierArrived={onCourierArrived}
           markers={[
             {
               id: "courier",
@@ -627,10 +630,12 @@ function DeliveryCompleteForm({
   orderId,
   onComplete,
   loading,
+  disabledUpload = false,
 }: {
   orderId: string;
   onComplete: (photo?: File) => void;
   loading: boolean;
+  disabledUpload?: boolean;
 }) {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
@@ -686,11 +691,19 @@ function DeliveryCompleteForm({
         ) : (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full p-6 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center gap-2 hover:border-secondary/40 transition-colors cursor-pointer"
+            disabled={disabledUpload}
+            className={cn(
+              "w-full p-6 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center gap-2 transition-colors",
+              disabledUpload
+                ? "opacity-50 cursor-not-allowed bg-gray-50"
+                : "hover:border-secondary/40 cursor-pointer",
+            )}
           >
             <Camera size={24} className="text-gray-300" />
-            <span className="text-xs font-bold text-gray-400">
-              Ambil Foto Bukti
+            <span className="text-xs font-bold text-gray-400 text-center px-4">
+              {disabledUpload
+                ? "Harap tunggu kurir tiba di gudang..."
+                : "Ambil Foto Bukti"}
             </span>
           </button>
         )}
@@ -932,6 +945,7 @@ export default function MissionDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasArrivedAtWarehouse, setHasArrivedAtWarehouse] = useState(false);
 
   // Fetch order with polling
   const { data: orderRes, isLoading } = useQuery({
@@ -999,6 +1013,12 @@ export default function MissionDetailPage() {
     });
   };
 
+  useEffect(() => {
+    if (showCompleted || showCancelled) {
+      router.replace(`/dashboard/courier/history/${orderId}`);
+    }
+  }, [showCompleted, showCancelled, router, orderId]);
+
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-dark flex items-center justify-center">
@@ -1025,7 +1045,6 @@ export default function MissionDetailPage() {
   }
 
   if (showCompleted || showCancelled) {
-    router.replace(`/dashboard/courier/history/${orderId}`);
     return null;
   }
 
@@ -1206,10 +1225,12 @@ export default function MissionDetailPage() {
                   loading={actionLoading}
                   onAction={() => {}}
                   hideButton={true}
+                  onCourierArrived={() => setHasArrivedAtWarehouse(true)}
                 />
                 <DeliveryCompleteForm
                   orderId={orderId}
                   loading={actionLoading}
+                  disabledUpload={!hasArrivedAtWarehouse}
                   onComplete={(photo) =>
                     handleAction(() =>
                       courierService.completeOrder(orderId, photo),
@@ -1218,7 +1239,6 @@ export default function MissionDetailPage() {
                 />
               </div>
             )}
-
           </div>
         )}
 

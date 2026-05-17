@@ -113,7 +113,7 @@ export default function TopBar() {
           >
             <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 border-2 border-white ring-1 ring-gray-100 overflow-hidden shadow-sm transition-transform active:scale-95 md:active:scale-100 group-hover:ring-primary/30 md:group-hover:ring-gray-100">
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ilham"
+                src={user?.photoUrl || user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || "User"}`}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />
@@ -140,7 +140,10 @@ export default function TopBar() {
                 <div className="p-2">
                   <button
                     onClick={() => {
-                      router.push("/dashboard/user/profile");
+                      const profileRoute = pathname.includes("/dashboard/courier") 
+                        ? "/dashboard/courier/profile" 
+                        : "/dashboard/user/profile";
+                      router.push(profileRoute);
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-primary rounded-xl transition-colors"

@@ -375,13 +375,7 @@ function CompletedView({
   order: Order;
   onSummary: () => void;
 }) {
-  const wasteItems = order.wasteItems || [];
-  const mutuKg = wasteItems
-    .filter((w) => w.category === "mutu")
-    .reduce((s, w) => s + (w.weightKg || 0), 0);
-  const residuKg = wasteItems
-    .filter((w) => w.category === "residu")
-    .reduce((s, w) => s + (w.weightKg || 0), 0);
+  const pointsEarned = order.pointTransactions?.reduce((sum, tx) => sum + tx.points, 0) || 0;
 
   return (
     <div className="p-4 text-center space-y-5 py-8">
@@ -395,29 +389,27 @@ function CompletedView({
           berkontribusi untuk lingkungan yang lebih bersih!
         </p>
       </div>
-      {wasteItems.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
-          <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-            <p className="text-[9px] font-bold text-green-600 uppercase tracking-widest">
-              Mutu
-            </p>
-            <p className="text-base font-black text-green-700">
-              {mutuKg.toFixed(1)} kg
-            </p>
+
+      {pointsEarned > 0 && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-between mx-auto text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+              <TrendingUp size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-emerald-800">Point Loyalty Diterima</p>
+              <p className="text-[10px] text-emerald-600 leading-tight mt-0.5">Berhasil ditambahkan ke akun Anda</p>
+            </div>
           </div>
-          <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-            <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest">
-              Residu
-            </p>
-            <p className="text-base font-black text-red-600">
-              {residuKg.toFixed(1)} kg
-            </p>
-          </div>
+          <p className="text-lg font-black text-emerald-600 shrink-0 ml-2">
+            +{pointsEarned} pts
+          </p>
         </div>
       )}
+
       <button
         onClick={onSummary}
-        className="w-full py-4 rounded-full bg-primary text-white font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors cursor-pointer"
+        className="w-full py-4 rounded-full bg-primary text-white font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors cursor-pointer mt-4"
       >
         Lihat Ringkasan Pesanan
       </button>
