@@ -8,8 +8,10 @@ import {
   User,
   Settings,
   ChevronDown,
+  BarChart2,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
@@ -84,6 +86,10 @@ export default function TopBar() {
       </div>
 
       <div className="flex items-center gap-3 md:gap-5">
+        <Link href="/dashboard/user/leaderboard" className="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors relative">
+          <BarChart2 size={20} />
+        </Link>
+        
         <button className="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors relative">
           <Bell size={20} />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
