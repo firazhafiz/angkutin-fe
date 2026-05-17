@@ -86,9 +86,11 @@ export default function TopBar() {
       </div>
 
       <div className="flex items-center gap-3 md:gap-5">
-        <Link href="/dashboard/user/leaderboard" className="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors relative">
-          <BarChart2 size={20} />
-        </Link>
+        {pathname.includes("/dashboard/user") && (
+          <Link href="/dashboard/user/leaderboard" className="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors relative">
+            <BarChart2 size={20} />
+          </Link>
+        )}
         
         <button className="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors relative">
           <Bell size={20} />

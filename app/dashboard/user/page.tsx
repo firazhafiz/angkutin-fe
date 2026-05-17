@@ -550,7 +550,7 @@ export default function UserDashboard() {
           </div>
 
           {/* Column 3: Tips & Bantuan (Double Widget) */}
-          <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-6">
             <div className="bg-primary-light p-5 md:p-6 rounded-2xl text-white relative overflow-hidden  flex flex-col justify-between group h-full lg:h-auto min-h-[180px]">
               <div className="relative z-10">
                 <div className="w-8 h-8 bg-dark rounded-lg flex items-center justify-center mb-3 group-hover:rotate-12 transition-transform">
